@@ -11,6 +11,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # Phase 8 accounts: transactional email (Resend) + session-cookie signing.
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 SESSION_SECRET = os.getenv("SESSION_SECRET")
+VERIFICATION_CODE_TTL_MINUTES = int(os.getenv("VERIFICATION_CODE_TTL_MINUTES", "10"))
 
 # Layer 1 SVD default latent concept count (overview.md §3.1).
 SVD_RANK = int(os.getenv("SVD_RANK", "10"))

@@ -54,9 +54,9 @@ Ported from the Figma draft (`frontend/Design nectarly web app/`, since deleted)
 ## Phase 8: Accounts
 Email-based account creation (overview.md §6.1) — verification code, not password. No frontend UI yet (backend API only); login form is a separate later stage. Blocked on the Vultr Managed Postgres cluster actually being provisioned (deploy/README.md §1 "Remaining") — code is written against DATABASE_URL regardless, but cannot run until then.
 - [x] `backend/app/config.py` — add `DATABASE_URL` (moved here from `main.py`, where it's currently unused dead code), `RESEND_API_KEY`, `SESSION_SECRET` (HMAC signing key for session cookies)
-- [ ] `backend/app/models.py` — add `Account` schema: `id`, `email`, `created_at`
-- [ ] `backend/app/db.py` — Postgres connection (`psycopg`, sync — matches the rest of the codebase's sync style, no async elsewhere) + idempotent schema bootstrap (`CREATE TABLE IF NOT EXISTS accounts`/`verification_codes` on startup) — no migration framework yet, per `deploy/README.md` §6's "wire it in when the first table lands" note; this *is* that first table
-- [ ] `backend/app/accounts/store.py` — DB access: get-or-create account by email, store/consume verification codes (raw SQL via `db.py`'s connection)
+- [x] `backend/app/models.py` — add `Account` schema: `id`, `email`, `created_at`
+- [x] `backend/app/db.py` — Postgres connection pool (`psycopg` + `psycopg_pool.ConnectionPool`, sync — matches the rest of the codebase's sync style, no async elsewhere; a bare shared connection isn't thread-safe under FastAPI's threadpool-per-request model) + idempotent schema bootstrap (`CREATE TABLE IF NOT EXISTS accounts`/`verification_codes` on startup) — no migration framework yet, per `deploy/README.md` §6's "wire it in when the first table lands" note; this *is* that first table
+- [x] `backend/app/accounts/store.py` — DB access: get-or-create account by email (atomic, race-safe), get account by id, store/consume verification codes (raw SQL via `db.py`'s pool)
 - [ ] `backend/app/accounts/verification.py` — generate a random numeric code + expiry, verify a submitted code against what's stored (via `store.py`)
 - [ ] `backend/app/accounts/session.py` — sign/verify a session token (HMAC-SHA256 over account id + expiry, using `config.SESSION_SECRET`); issue/read the httponly cookie
 - [ ] `backend/app/accounts/mailer.py` — Resend API wrapper, sends the verification code by email

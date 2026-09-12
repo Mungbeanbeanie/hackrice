@@ -4,7 +4,10 @@
 - If comments become inaccurate, flag and defer updates to the user.
 
 ## Memory Rules
-- All project memory lives in `.claude/` only. No new `.md` files without user approval. Use `overview.md` for source of truth, `plan.md` for build status and checklist, `architecture.md` for file structure, `currentDev.md` for active tasks.
+- All project memory lives in `.claude/` only. No new `.md` files without user approval. Use `overview.md` for source of truth, `plan.md` for build status and checklist, `architecture.md` for file structure, `currentDev.md` for active tasks, `branchDep.md` for pending dependency changes.
+
+## Dependency Rules
+- CI/CD pipeline is sensitive to dependency changes on a branch before it merges to test/prod. Any add/remove/bump to `backend/pyproject.toml`/`uv.lock` or `frontend/package.json`/`package-lock.json` must be logged as a row in `branchDep.md` (date, file, change, reason) in the same `stage` that makes the change — not after the fact.
 
 ## Keyword Rules
 -  `stage` is keyword for the plan for the next change (either code or file diff) to be written to currentDev.md
