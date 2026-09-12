@@ -158,3 +158,27 @@ jobs:
             echo "attempt $i: not up yet"; sleep 3
           done
           echo "health check never passed"; exit 1
+
+  # Keeps dev from drifting behind main after a merge. Runs off the check jobs
+  # rather than deploy so it still syncs while DEPLOY_ENABLED is unset.
+  sync-dev:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # No checkout: moving one ref does not need a clone, and `git push` from
+      # the default shallow clone cannot verify the fast-forward locally — it
+      # rejects with "fetch first" even when the push is valid.
+      #
+      # ponytail: PATCH without `force` is fast-forward-only server-side. It
+      # 422s if dev has commits main lacks — real divergence, which wants a PR,
+      # not an automatic push. Also never applies to squash-merged PRs, whose
+      # commits are not ancestors.
+      - name: Fast-forward dev to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X PATCH "repos/${{ github.repository }}/git/refs/heads/dev" \
+            -f sha=${{ github.sha }}
