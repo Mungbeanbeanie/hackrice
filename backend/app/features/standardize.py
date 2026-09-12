@@ -16,7 +16,9 @@ class StandardizedModel:
     product_ids: list[str]
 
 
-def _build_weight_vector(matrix: AttributeMatrix, products: list[Product]) -> list[float]:
+def _build_weight_vector(
+    matrix: AttributeMatrix, products: list[Product]
+) -> list[float]:
     spec_tier: dict[str, str] = {}
     for product in products:
         for spec in product.specs:
@@ -24,13 +26,16 @@ def _build_weight_vector(matrix: AttributeMatrix, products: list[Product]) -> li
                 spec_tier[spec.name] = spec.weight_tier
 
     spec_weights = [
-        config.CATEGORY_WEIGHTS[spec_tier.get(name, "secondary")] for name in matrix.spec_names
+        config.CATEGORY_WEIGHTS[spec_tier.get(name, "secondary")]
+        for name in matrix.spec_names
     ]
     embedding_weights = [config.CATEGORY_WEIGHTS["soft"]] * matrix.embedding_dim
     return spec_weights + embedding_weights
 
 
-def fit_standardization(matrix: AttributeMatrix, products: list[Product]) -> StandardizedModel:
+def fit_standardization(
+    matrix: AttributeMatrix, products: list[Product]
+) -> StandardizedModel:
     A = np.array(matrix.rows, dtype=float)
     mu = A.mean(axis=0)
     sigma = np.where(A.std(axis=0) == 0, 1.0, A.std(axis=0))

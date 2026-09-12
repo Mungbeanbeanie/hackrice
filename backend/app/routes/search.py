@@ -62,7 +62,9 @@ def _tier_to_int(tier: Tier) -> int:
     return {Tier.TIER_1: 1, Tier.TIER_2: 2, Tier.TIER_3: 3}[tier]
 
 
-def _to_wire_product(product: Product, comparison: ComparisonResult | None = None) -> WireProduct:
+def _to_wire_product(
+    product: Product, comparison: ComparisonResult | None = None
+) -> WireProduct:
     if comparison is not None:
         match_score = round(comparison.similarity * 100, 1)
         savings = comparison.savings_amount
@@ -118,13 +120,17 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
         )
 
     matrix = attribute_matrix.build_attribute_matrix(candidates)
-    reference_vector = attribute_matrix.build_reference_vector(matrix, search_text, product=target)
+    reference_vector = attribute_matrix.build_reference_vector(
+        matrix, search_text, product=target
+    )
 
     svd_model = svd.fit_svd(matrix)
     similarities = svd.compute_similarities(svd_model, reference_vector)
 
     std_model = standardize.fit_standardization(matrix, candidates)
-    spec_matches = standardize.compute_weighted_similarities(std_model, reference_vector)
+    spec_matches = standardize.compute_weighted_similarities(
+        std_model, reference_vector
+    )
 
     quality_scores = quality.compute_quality_scores(candidates)
 
@@ -137,7 +143,9 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
     tier3: list[WireProduct] = []
     buckets = {1: tier1, 2: tier2, 3: tier3}
     for result in results:
-        buckets[_tier_to_int(result.tier)].append(_to_wire_product(result.candidate, result))
+        buckets[_tier_to_int(result.tier)].append(
+            _to_wire_product(result.candidate, result)
+        )
 
     return SearchApiResponse(
         query=body.query,

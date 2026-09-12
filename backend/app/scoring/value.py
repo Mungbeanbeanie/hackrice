@@ -27,7 +27,9 @@ def rank_candidates(
         value_score = quality * similarity / product.price
         tier = _assign_tier(spec_matches[product.id], similarity)
 
-        savings_amount = target_price - product.price if target_price is not None else None
+        savings_amount = (
+            target_price - product.price if target_price is not None else None
+        )
         savings_percent = (
             (savings_amount / target_price * 100)
             if target_price and savings_amount is not None

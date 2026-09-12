@@ -29,7 +29,9 @@ def get_cached_search(query_hash: str) -> list[Product] | None:
     return [Product.model_validate(p) for p in json.loads(raw)]
 
 
-def set_cached_search(query_hash: str, products: list[Product], ttl: int = 3600) -> None:
+def set_cached_search(
+    query_hash: str, products: list[Product], ttl: int = 3600
+) -> None:
     payload = json.dumps([p.model_dump(mode="json") for p in products])
     _get_client().setex(f"search:{query_hash}", ttl, payload)
 
@@ -41,5 +43,7 @@ def get_cached_embedding(text_hash: str) -> list[float] | None:
     return json.loads(raw)
 
 
-def set_cached_embedding(text_hash: str, embedding: list[float], ttl: int = 86400) -> None:
+def set_cached_embedding(
+    text_hash: str, embedding: list[float], ttl: int = 86400
+) -> None:
     _get_client().setex(f"embedding:{text_hash}", ttl, json.dumps(embedding))

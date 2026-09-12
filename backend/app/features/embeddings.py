@@ -1,3 +1,5 @@
+from typing import cast
+
 import openai
 
 from app import cache, config
@@ -42,4 +44,5 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
             cached[i] = data.embedding
             cache.set_cached_embedding(keys[i], data.embedding)
 
-    return cached
+    # every None slot was filled above (zip strict=True), so no Nones remain
+    return cast(list[list[float]], cached)
