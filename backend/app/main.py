@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
 from app.routes import admin, auth, coupons, search
@@ -22,6 +23,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="hackrice", lifespan=lifespan)
+
+# Phase 14 browser extension: the background service worker's fetch to
+# /api/search is the first cross-origin caller this API has ever had (the
+# deployed frontend and API sit behind the same Caddy front door). Scoped to
+# exactly what the extension needs, not allow_origins=["*"] with credentials.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^chrome-extension://.*",
+    allow_methods=["POST"],
+    allow_headers=["Content-Type"],
+)
 
 app.include_router(search.router)
 app.include_router(auth.router)

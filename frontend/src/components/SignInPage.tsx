@@ -1,12 +1,14 @@
 import { useState } from "react";
 
 import { requestSignInCode, verifySignInCode } from "@/api/client";
+import type { Account } from "@/api/client";
 import HoneyDrop from "@/components/HoneyDrop";
 import TermsLink from "@/components/TermsLink";
 
 interface Props {
   onGoLanding: () => void;
-  onSignedIn: () => void;
+  onSignedIn: (account: Account) => void;
+  onContinueAsGuest: () => void;
 }
 
 type Step = "email" | "code";
@@ -18,7 +20,7 @@ type Step = "email" | "code";
 // email+code. There is no link-click step to land on. Copy adjusted to
 // "code" and a second step added for entering it — not present in the
 // original mockup, which only modeled a single email step.
-export default function SignInPage({ onGoLanding, onSignedIn }: Props) {
+export default function SignInPage({ onGoLanding, onSignedIn, onContinueAsGuest }: Props) {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -46,8 +48,8 @@ export default function SignInPage({ onGoLanding, onSignedIn }: Props) {
     setBusy(true);
     setError("");
     try {
-      await verifySignInCode(email.trim(), code.trim());
-      onSignedIn();
+      const account = await verifySignInCode(email.trim(), code.trim());
+      onSignedIn(account);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid or expired code");
     } finally {
@@ -188,7 +190,7 @@ export default function SignInPage({ onGoLanding, onSignedIn }: Props) {
             <span className="flex-1 bg-divider" style={{ height: 1 }} />
           </div>
           <button
-            onClick={onSignedIn}
+            onClick={onContinueAsGuest}
             className="w-full rounded-full border border-divider bg-transparent font-heading text-text hover:bg-neutral-200 transition-colors cursor-pointer"
             style={{ padding: "var(--space-3)", fontSize: "14.5px" }}
           >

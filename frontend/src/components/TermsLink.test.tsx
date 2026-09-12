@@ -8,7 +8,7 @@ const showModal = vi.fn();
 Object.defineProperty(HTMLElement.prototype, "showModal", { value: showModal, writable: true });
 
 test("the terms checkbox gates the form, and opening the terms does not tick it", () => {
-  render(<SignInPage onGoLanding={() => {}} onSignedIn={() => {}} />);
+  render(<SignInPage onGoLanding={() => {}} onSignedIn={() => {}} onContinueAsGuest={() => {}} />);
   const box = screen.getByRole("checkbox") as HTMLInputElement;
 
   expect(box.required).toBe(true);

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, ArrowLeft, Search, User } from "lucide-react";
 
-import { searchProducts } from "@/api/client";
-import type { Group, Product, SearchResponse } from "@/api/client";
+import { getCurrentAccount, searchProducts } from "@/api/client";
+import type { Account, Group, Product, SearchResponse } from "@/api/client";
 import SearchBar from "@/components/SearchBar";
 import TargetProductCard from "@/components/TargetProductCard";
 import AlternativeGroups, { GROUP_ORDER } from "@/components/AlternativeGroups";
@@ -132,14 +132,25 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("landing");
+  // Extension "Open full comparison" deep-links here with ?q=<title>.
+  const initialQuery = new URLSearchParams(window.location.search).get("q") ?? "";
+  const [screen, setScreen] = useState<Screen>(initialQuery ? "app" : "landing");
   const [appState, setAppState] = useState<AppState>("idle");
   const [view, setView] = useState<View>("ranked");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [error, setError] = useState("");
   const [compareProduct, setCompareProduct] = useState<Product | null>(null);
   const [couponProduct, setCouponProduct] = useState<Product | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
+  // Which screen to return to after the sign-in flow — landing and the app
+  // header both open the same SignInPage, so "always land back on app" was
+  // wrong for the landing entry point.
+  const [returnScreen, setReturnScreen] = useState<Screen>("landing");
+
+  useEffect(() => {
+    getCurrentAccount().then(setAccount);
+  }, []);
 
   function goTo(next: Screen) {
     // The overlay surviving a screen change was a real bug in the design
@@ -152,7 +163,12 @@ export default function App() {
     setScreen(next);
   }
 
-  async function runSearch(q: string) {
+  function goToSignIn() {
+    setReturnScreen(screen);
+    goTo("signin");
+  }
+
+  const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {
       setScreen("app");
@@ -169,7 +185,11 @@ export default function App() {
       setError(e instanceof Error ? e.message : "Search failed");
       setAppState("error");
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (initialQuery) runSearch(initialQuery);
+  }, [initialQuery, runSearch]);
 
   const allProducts = results ? flattenGroups(results.groups) : [];
   const best = allProducts[0];
@@ -189,7 +209,7 @@ export default function App() {
           query={query}
           onQueryChange={setQuery}
           onSearch={runSearch}
-          onGoSignin={() => goTo("signin")}
+          onGoSignin={goToSignIn}
           onGoExtension={() => goTo("extension")}
         />
       )}
@@ -221,11 +241,11 @@ export default function App() {
                 onSearch={runSearch}
               />
               <button
-                onClick={() => goTo("signin")}
+                onClick={goToSignIn}
                 className="inline-flex items-center rounded-full border border-divider bg-transparent font-semibold text-text hover:bg-neutral-200 transition-colors cursor-pointer flex-shrink-0"
                 style={{ gap: "var(--space-2)", padding: "var(--space-1) var(--space-2) var(--space-1) var(--space-3)", fontSize: "13.5px" }}
               >
-                Sign in
+                {account ? account.email : "Sign in"}
                 <span
                   className="rounded-full bg-accent-200 text-accent-800 inline-flex items-center justify-center"
                   style={{ width: 26, height: 26 }}
@@ -369,7 +389,14 @@ export default function App() {
       )}
 
       {screen === "signin" && (
-        <SignInPage onGoLanding={() => goTo("landing")} onSignedIn={() => goTo("app")} />
+        <SignInPage
+          onGoLanding={() => goTo("landing")}
+          onSignedIn={(acct) => {
+            setAccount(acct);
+            goTo(returnScreen);
+          }}
+          onContinueAsGuest={() => goTo(returnScreen)}
+        />
       )}
 
       {screen === "extension" && (

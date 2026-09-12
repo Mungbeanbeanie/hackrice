@@ -126,3 +126,13 @@ export async function verifySignInCode(email: string, code: string): Promise<Acc
     body: JSON.stringify({ email, code }),
   });
 }
+
+// Not signed in (401) is a normal state for most visitors, not an error —
+// same "resolve to null" convention as fetchCoupon above.
+export async function getCurrentAccount(): Promise<Account | null> {
+  try {
+    return await apiFetch<Account>("/auth/me");
+  } catch {
+    return null;
+  }
+}
