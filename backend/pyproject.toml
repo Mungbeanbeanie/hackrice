@@ -1,0 +1,35 @@
+[project]
+name = "hackrice-backend"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15",
+    "pytest>=8.0",
+    "ruff>=0.9",
+]
+
+# This is an application, not a distributable library — nothing to build or install.
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+# E/F = pyflakes+pycodestyle, I = import sorting (replaces isort),
+# UP = pyupgrade, B = bugbear. ruff format replaces black.
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["app", "tests"]
+# ponytail: permissive on purpose — strict mode on unannotated greenfield code
+# produces hundreds of day-one errors and the gate just gets disabled.
+# Turn on `strict = true` once the codebase has real annotations.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
