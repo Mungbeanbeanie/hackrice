@@ -1,10 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel
 
 
-class SearchMode(str, Enum):
+class SearchMode(StrEnum):
     URL = "url"
     EXACT_PRODUCT = "exact_product"
     DESCRIPTION = "description"
@@ -34,7 +34,7 @@ class Product(BaseModel):
     specs: list[SpecAttribute]
 
 
-class Tier(str, Enum):
+class Tier(StrEnum):
     TIER_1 = "tier_1"
     TIER_2 = "tier_2"
     TIER_3 = "tier_3"
