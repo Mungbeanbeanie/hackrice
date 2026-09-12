@@ -26,13 +26,27 @@ with two separate databases (`hackrice_prod`, `hackrice_staging`) to halve the
 cost, or run two clusters for real isolation. Two databases on one cluster is
 fine early; split them before staging traffic can plausibly affect production.
 
-**Firewall group** (Vultr → Network → Firewall), attached to both instances:
+**Firewall group** (Vultr → Network → Firewall), attached to both instances.
+Add all three rules to **both** the IPv4 and IPv6 tabs — Vultr evaluates the two
+families separately and default-denies anything unmatched, so v6-only rules
+going missing is a silent failure later when AAAA records appear.
 
 | Port | Source | Why |
 |------|--------|-----|
-| 22 | your IP, ideally | SSH. Leaving this world-open is the single most common way these boxes get owned. |
-| 80 | anywhere | HTTP, and Let's Encrypt's HTTP-01 challenge later |
-| 443 | anywhere | HTTPS once a domain exists |
+| 22 | `0.0.0.0/0` and `::/0` | SSH, including the deploy job |
+| 80 | `0.0.0.0/0` and `::/0` | HTTP, and Let's Encrypt's HTTP-01 challenge later |
+| 443 | `0.0.0.0/0` and `::/0` | HTTPS once a domain exists |
+
+**Why port 22 is open to the world:** the deploy job SSHes in from a
+GitHub-hosted runner, whose egress addresses are ~7000 rotating CIDRs
+(`https://api.github.com/meta`). Allowlisting them is not practical, and
+restricting 22 to your own IP breaks every deploy.
+
+Open SSH is safe *only because the box accepts keys and nothing else* — the
+hardening in step 2 is what makes this acceptable, not optional garnish. If you
+later want 22 closed to the internet entirely, the move is a private network
+between runner and box (Tailscale has a GitHub Action and an ephemeral-auth-key
+flow), not an IP allowlist.
 
 **Database trusted sources:** add both instance IPs to the Postgres cluster's
 allowed list, or it will refuse connections.
@@ -54,6 +68,35 @@ install -d -o deploy -g deploy /srv/hackrice
 # Unattended security updates — this is the patching tax of not using a PaaS
 apt-get update && apt-get install -y unattended-upgrades
 dpkg-reconfigure -plow unattended-upgrades
+```
+
+**Harden SSH.** Port 22 is open to the internet (see above), so key-only auth is
+what stands between you and the background noise of the internet guessing
+passwords:
+
+```sh
+# Refuse passwords and keyboard-interactive entirely; keys only.
+cat > /etc/ssh/sshd_config.d/99-hackrice.conf <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+EOF
+sshd -t && systemctl restart ssh
+
+# Rate-limit what's left
+apt-get install -y fail2ban
+systemctl enable --now fail2ban
+```
+
+Run `sshd -t` before restarting, as above — it validates the config, and a typo
+that takes sshd down on a box you can only reach by SSH is a bad afternoon.
+Vultr's browser console is the way back in if that happens.
+
+Confirm key-only auth actually took effect before moving on:
+
+```sh
+ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no deploy@<ip>
+# expected: "Permission denied (publickey)."
 ```
 
 Generate a **dedicated deploy keypair** locally (not your personal SSH key):
