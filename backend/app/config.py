@@ -3,6 +3,9 @@ import os
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Layer 1 SVD default latent concept count (overview.md §3.1).
+SVD_RANK = int(os.getenv("SVD_RANK", "10"))
+
 # Vultr-managed cache connection string.
 CACHE_URL = os.getenv("CACHE_URL")
 
