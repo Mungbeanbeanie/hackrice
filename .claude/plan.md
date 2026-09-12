@@ -47,5 +47,6 @@ Ported from the Figma draft (`frontend/Design nectarly web app/`, since deleted)
 - ~~`frontend/src/components/SearchModeSelector.tsx`~~ — dropped: one search box, backend infers url / exact_product / description
 
 ## Phase 7: Tests
-- [ ] `backend/tests/test_scoring.py` — unit tests for $Q$ and $V$ formula correctness
-- [ ] `backend/tests/test_pipeline.py` — integration test of full pipeline against a mocked SerpAPI response
+- [x] `backend/tests/test_ingestion.py` — edge-case/runtime-safety tests for `serpapi_client.py` (missing key, wrapped network-timeout error, malformed response parsing) — not originally scoped, added to cover the timeout/error-wrapping fix
+- [x] `backend/tests/test_scoring.py` — edge-case/runtime-safety tests for `quality.py`/`value.py` (zero reviews, zero price, empty input, below-quality-threshold filtering) — not $Q$/$V$ formula correctness, per instruction to test runtime safety, not efficacy
+- [x] `backend/tests/test_pipeline.py` — integration test of `/api/search` via `TestClient`, with `serpapi_client`/`target_resolver`/`embeddings` mocked — no-candidates branch, target-not-found 404, full pipeline run without raising on mocked realistic input
