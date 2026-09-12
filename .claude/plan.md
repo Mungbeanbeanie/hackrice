@@ -30,9 +30,9 @@ Mission: implement the financial optimization product comparison pipeline descri
 - [x] `backend/app/scoring/value.py` — Layer 4: value optimization score $V$, tier assignment (1/2/3)
 
 ## Phase 5: API
-- [ ] `backend/app/routes/search.py` — `POST /api/search`, **infers** the mode from the raw input (the UI is a single search box and sends no `mode`; `SearchQuery.mode` is backend-derived), then branches on it (resolve target or skip), orchestrates ingestion → features → scoring, returns tiered results (target product omitted from response in `description` mode). Response shape must match `frontend/src/api/client.ts`'s `SearchResponse` (`{ query, targetProduct, tiers: { tier1, tier2, tier3 } }`) or add the adapter there.
-- [ ] `backend/app/routes/compare.py` — `GET /api/compare/{id}`, spec breakdown detail for one candidate
-- [ ] `backend/app/main.py` — wire `search`/`compare` routers into the existing app (extends Phase 0 file)
+- [x] `backend/app/routes/search.py` — `POST /api/search`, **infers** the mode from the raw input (the UI is a single search box and sends no `mode`; `SearchQuery.mode` is backend-derived), then branches on it (resolve target or skip), orchestrates ingestion → features → scoring, returns tiered results (target product omitted from response in `description` mode). Response shape must match `frontend/src/api/client.ts`'s `SearchResponse` (`{ query, targetProduct, tiers: { tier1, tier2, tier3 } }`) or add the adapter there.
+- [x] `backend/app/routes/compare.py` — `GET /api/compare/{id}`, stub only (`501`) — `SpecBreakdownModal.tsx` computes spec comparison client-side, nothing calls this endpoint
+- [x] `backend/app/main.py` — wire `search`/`compare` routers into the existing app (extends Phase 0 file)
 
 ## Phase 6: Frontend
 Ported from the Figma draft (`frontend/Design nectarly web app/`, since deleted). Live fetch only — no mock data; searches show an error panel until Phase 5 lands.
