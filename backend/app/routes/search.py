@@ -1,4 +1,5 @@
 import re
+import statistics
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -6,7 +7,7 @@ from pydantic import BaseModel
 from app import analytics
 from app.features import attribute_matrix, standardize, svd
 from app.ingestion import serpapi_client, target_resolver
-from app.models import ComparisonResult, Group, Product, SearchMode
+from app.models import ComparisonResult, Group, Product, SearchMode, SpecAttribute
 from app.scoring import explain, quality, value
 
 router = APIRouter()
@@ -57,6 +58,12 @@ class SearchApiResponse(BaseModel):
     query: str
     targetProduct: WireProduct | None
     groups: Groups
+    # The mode the backend inferred, and the price every savings figure and
+    # share bar is measured against. In description mode targetProduct is None
+    # but baselinePrice is not — it is the median of the candidate set, which
+    # the UI labels differently and must not present as a real product.
+    mode: SearchMode
+    baselinePrice: float | None = None
 
 
 # Above this many words the input reads as a functional description rather than
@@ -105,10 +112,62 @@ def _short(title: str) -> str:
     return " ".join(title.split()[:3])
 
 
+def _median_product(candidates: list[Product]) -> Product | None:
+    """A synthetic "typical product" standing in for the target in description mode.
+
+    A description names no product, so there was no baseline at all: every
+    savings figure came back None and the share bar never rendered. The median
+    of the candidate set is the honest answer to "compared to what" — half the
+    market is cheaper, half dearer.
+
+    Never returned to the client and never added to `candidates`: it has no URL,
+    no reviews and nothing to buy, so as a row in the matrix it would be scored
+    and rendered as a real listing.
+    """
+    prices = [c.price for c in candidates if c.price > 0]
+    if not prices:
+        return None
+
+    # Only numeric specs have a median. Text specs (material, size) would need a
+    # mode rather than a median, and picking the most common material would
+    # assert a material the "typical product" does not actually have.
+    numeric: dict[str, list[float]] = {}
+    tiers: dict[str, str] = {}
+    for candidate in candidates:
+        for spec in candidate.specs:
+            if isinstance(spec.value, int | float):
+                numeric.setdefault(spec.name, []).append(float(spec.value))
+                tiers[spec.name] = spec.weight_tier
+
+    return Product(
+        id="__median__",
+        title="Typical product at this price",
+        description=None,
+        brand=None,
+        price=statistics.median(prices),
+        original_price=None,
+        rating=statistics.median([c.rating for c in candidates]),
+        review_count=int(statistics.median([c.review_count for c in candidates])),
+        vendor="",
+        vendor_logo=None,
+        image_url=None,
+        product_url="",
+        specs=[
+            SpecAttribute(
+                name=name,
+                value=statistics.median(values),
+                weight_tier=tiers[name],  # type: ignore[arg-type]
+            )
+            for name, values in numeric.items()
+        ],
+    )
+
+
 def _to_wire_product(
     product: Product,
     target_specs: dict[str, float | str] | None = None,
     comparison: ComparisonResult | None = None,
+    baseline_label: str = "the original",
 ) -> WireProduct:
     if comparison is not None:
         match_score = round(comparison.similarity * 100, 1)
@@ -145,9 +204,11 @@ def _to_wire_product(
         specs=specs,
         matchScore=match_score,
         savings=savings,
-        savingsPercent=round(savings_percent, 1) if savings_percent else None,
+        savingsPercent=(
+            round(savings_percent, 1) if savings_percent is not None else None
+        ),
         rationale=(
-            explain.rationale(comparison, [s.verdict for s in specs])
+            explain.rationale(comparison, [s.verdict for s in specs], baseline_label)
             if comparison is not None
             else None
         ),
@@ -178,14 +239,21 @@ def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
     analytics.record_search(request, body.query, mode.value, len(results))
 
     if mode == SearchMode.DESCRIPTION:
-        target, candidates = None, results
+        candidates = results
+        # Stands in for the target so savings, spec verdicts and the reference
+        # vector all have something to measure against. Deliberately not
+        # returned to the client — it is not a product anyone can buy.
+        target = _median_product(candidates)
+        target_wire = None
     else:
         if not results:
             raise HTTPException(404, "Target product not found")
-        target, candidates = results[0], results[1:]
+        target = target_resolver.pick_target(results, body.query, search_text)
+        # Not results[1:] — the target is no longer guaranteed to be index 0.
+        candidates = [p for p in results if p.id != target.id]
+        target_wire = _to_wire_product(target)
 
     target_price = target.price if target is not None else None
-    target_wire = _to_wire_product(target) if target is not None else None
     # Built once per request rather than scanning the target's spec list again
     # for every spec of every candidate.
     target_specs = (
@@ -197,6 +265,8 @@ def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
             query=body.query,
             targetProduct=target_wire,
             groups=Groups(same_spec=[], same_job=[], clears_floor=[]),
+            mode=mode,
+            baselinePrice=target_price,
         )
 
     matrix, reference_vector = attribute_matrix.build_vector_space(
@@ -217,10 +287,14 @@ def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
         candidates, quality_scores, similarities, spec_matches, target_price
     )
 
+    baseline_label = (
+        "the median price" if mode == SearchMode.DESCRIPTION else "the original"
+    )
+
     buckets: dict[Group, list[WireProduct]] = {group: [] for group in Group}
     for result in ranked:
         buckets[result.group].append(
-            _to_wire_product(result.candidate, target_specs, result)
+            _to_wire_product(result.candidate, target_specs, result, baseline_label)
         )
 
     return SearchApiResponse(
@@ -231,4 +305,6 @@ def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
             same_job=buckets[Group.SAME_JOB],
             clears_floor=buckets[Group.CLEARS_FLOOR],
         ),
+        mode=mode,
+        baselinePrice=target_price,
     )

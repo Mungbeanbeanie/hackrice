@@ -16,9 +16,12 @@ _LOWER_BETTER = {"lb", "kg"}
 # not a real distinction worth a better/lower call.
 _CLOSE_BAND = (0.95, 1.05)
 
+# {baseline} is "the original" for a resolved target, "the median price" when
+# the reference is the synthetic median of the candidate set (description mode),
+# where calling it "the original" would name a product that does not exist.
 _OPENING: dict[Group, str] = {
     Group.SAME_SPEC: (
-        "Same materials and construction as the original, without the logo."
+        "Same materials and construction as {baseline}, without the logo."
     ),
     Group.SAME_JOB: "A different build that does the same job.",
     Group.CLEARS_FLOOR: "The cheapest option here that still clears the quality floor.",
@@ -76,14 +79,18 @@ def verdict(
     return "different"
 
 
-def rationale(result: ComparisonResult, verdicts: list[Verdict | None]) -> str:
+def rationale(
+    result: ComparisonResult,
+    verdicts: list[Verdict | None],
+    baseline_label: str = "the original",
+) -> str:
     """One or two plain sentences explaining why this candidate is here.
 
     Reads nothing the UI is no longer allowed to show: no Bayesian Q, no value
     score V, no cosine (overview.md §3.4). Every figure here is one the result
     card already displays on its own.
     """
-    parts = [_OPENING[result.group]]
+    parts = [_OPENING[result.group].format(baseline=baseline_label)]
 
     comparable = [v for v in verdicts if v is not None]
     if comparable:
@@ -93,7 +100,7 @@ def rationale(result: ComparisonResult, verdicts: list[Verdict | None]) -> str:
     if result.savings_amount is not None and result.savings_percent is not None:
         parts.append(
             f"Saves ${result.savings_amount:,.2f} "
-            f"({result.savings_percent:.0f}%) versus the original."
+            f"({result.savings_percent:.0f}%) versus {baseline_label}."
         )
 
     candidate = result.candidate

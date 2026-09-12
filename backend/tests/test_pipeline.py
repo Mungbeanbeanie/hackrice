@@ -200,18 +200,52 @@ def test_candidates_carry_a_rationale_and_verdicts() -> None:
         assert all(s["verdict"] is not None for s in c["specs"])
 
 
-def test_description_mode_leaves_every_verdict_none() -> None:
-    # No target resolved means nothing to compare any spec against.
-    results = [_product("c1", specs=_SPECS), _product("c2", specs=_SPECS)]
+def _description_search(*results: Product):
+    with (
+        patch(
+            "app.routes.search.serpapi_client.search_products",
+            return_value=list(results),
+        ),
+        patch("app.features.embeddings.embed_texts", side_effect=_fake_embeddings),
+    ):
+        return client.post(
+            "/api/search", json={"query": "a very long descriptive search query here"}
+        )
+
+
+def test_description_mode_compares_against_the_median() -> None:
+    # The synthetic median stands in for the absent target, so numeric specs are
+    # comparable — but "material" is text, has no median, and stays None.
+    body = _description_search(
+        _product("c1", specs=_SPECS), _product("c2", specs=_SPECS)
+    ).json()
+    candidates = [c for g in body["groups"].values() for c in g]
+    assert candidates
+    verdicts = {s["key"]: s["verdict"] for c in candidates for s in c["specs"]}
+    assert verdicts["measure_in"] is not None
+    assert verdicts["material"] is None
+
+
+def test_description_mode_reports_the_median_baseline_price() -> None:
+    # Was None before the median target: description mode had no baseline at
+    # all, so no savings figure and no share bar ever rendered.
+    body = _description_search(
+        _product("c1", price=10.0),
+        _product("c2", price=20.0),
+        _product("c3", price=90.0),
+    ).json()
+    assert body["mode"] == "description"
+    assert body["targetProduct"] is None
+    assert body["baselinePrice"] == 20.0
+
+
+def test_resolved_modes_report_the_target_as_the_baseline() -> None:
+    results = [_product("t1", price=120.0), _product("c1", price=40.0)]
     with (
         patch("app.routes.search.serpapi_client.search_products", return_value=results),
         patch("app.features.embeddings.embed_texts", side_effect=_fake_embeddings),
     ):
-        response = client.post(
-            "/api/search", json={"query": "a very long descriptive search query here"}
-        )
+        body = client.post("/api/search", json={"query": "Nike Shoe"}).json()
 
-    body = response.json()
-    candidates = [c for g in body["groups"].values() for c in g]
-    assert candidates
-    assert all(s["verdict"] is None for c in candidates for s in c["specs"])
+    assert body["mode"] == "exact_product"
+    assert body["baselinePrice"] == body["targetProduct"]["price"]
