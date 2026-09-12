@@ -140,8 +140,11 @@ jobs:
 
           # Config is version-controlled and pushed each deploy, so the server
           # never becomes the only place a setting lives.
-          printf 'IMAGE_TAG=%s\nDATABASE_URL=%s\nSITE_ADDRESS=%s\nSERPAPI_API_KEY=%s\nOPENAI_API_KEY=%s\nCACHE_URL=%s\n' \
-            "$IMAGE_TAG" "$DATABASE_URL" "$SITE_ADDRESS" "$SERPAPI_API_KEY" "$OPENAI_API_KEY" "$CACHE_URL" > .env
+          # Every var docker-compose.yml reads must appear here, or `${FOO:-}`
+          # silently resolves to empty on the box even with the secret set.
+          printf 'IMAGE_TAG=%s\nDATABASE_URL=%s\nSITE_ADDRESS=%s\nSERPAPI_API_KEY=%s\nOPENAI_API_KEY=%s\nCACHE_URL=%s\nCOUPON_API=%s\nRESEND_API_KEY=%s\nSESSION_SECRET=%s\nADMIN_PASSWORD=%s\n' \
+            "$IMAGE_TAG" "$DATABASE_URL" "$SITE_ADDRESS" "$SERPAPI_API_KEY" "$OPENAI_API_KEY" "$CACHE_URL" \
+            "$COUPON_API" "$RESEND_API_KEY" "$SESSION_SECRET" "$ADMIN_PASSWORD" > .env
 
           ssh "$TARGET" 'mkdir -p /srv/hackrice'
           scp deploy/docker-compose.yml .env "$TARGET:/srv/hackrice/"
