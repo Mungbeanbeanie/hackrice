@@ -22,19 +22,12 @@ def _get_client() -> openai.OpenAI:
     return _client
 
 
-def embed_text(text: str) -> list[float]:
-    key = cache.hash_key(text)
-    cached = cache.get_cached_embedding(key)
-    if cached is not None:
-        return cached
-
-    response = _get_client().embeddings.create(model=EMBEDDING_MODEL, input=text)
-    embedding = response.data[0].embedding
-    cache.set_cached_embedding(key, embedding)
-    return embedding
-
-
 def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a batch, serving whatever the cache already holds.
+
+    Errors propagate: attribute_matrix.build_vector_space catches them and falls
+    back to TF-IDF. Swallowing them here would return a half-built space.
+    """
     keys = [cache.hash_key(text) for text in texts]
     cached = [cache.get_cached_embedding(key) for key in keys]
 

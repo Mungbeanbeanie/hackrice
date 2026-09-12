@@ -6,7 +6,6 @@ interface SpecRow {
   spec: string;
   target: string;
   alternative: string;
-  winner: "target" | "alternative" | "tie";
 }
 
 interface Props {
@@ -15,31 +14,28 @@ interface Props {
   onClose: () => void;
 }
 
+// No per-row winner: which side "wins" is only defined for specs whose direction
+// is known, and the extracted set mixes higher-is-better (rating) with
+// lower-is-better (price) and neither (size). The previous version kept the
+// field but scored every row a tie, so two of its three colours were
+// unreachable. The table shows both values and lets the reader judge.
 function buildSpecComparison(product: Product, target: Product | null): SpecRow[] {
   if (!target) {
     return product.specs.map((s) => ({
       spec: s.key,
       target: "—",
       alternative: s.value,
-      winner: "tie" as const,
     }));
   }
   const allKeys = Array.from(
     new Set([...target.specs.map((s) => s.key), ...product.specs.map((s) => s.key)])
   );
-  return allKeys.map((key) => {
-    const t = target.specs.find((s) => s.key === key)?.value ?? "—";
-    const a = product.specs.find((s) => s.key === key)?.value ?? "—";
-    const winner: SpecRow["winner"] = t === a ? "tie" : "tie";
-    return { spec: key, target: t, alternative: a, winner };
-  });
+  return allKeys.map((key) => ({
+    spec: key,
+    target: target.specs.find((s) => s.key === key)?.value ?? "—",
+    alternative: product.specs.find((s) => s.key === key)?.value ?? "—",
+  }));
 }
-
-const winnerColors = {
-  target: { bg: "rgba(239,68,68,0.08)", text: "#dc2626" },
-  alternative: { bg: "rgba(34,197,94,0.1)", text: "#16a34a" },
-  tie: { bg: "transparent", text: "inherit" },
-};
 
 export default function SpecBreakdownModal({ product, targetProduct, onClose }: Props) {
   const rows = buildSpecComparison(product, targetProduct);
@@ -105,7 +101,7 @@ export default function SpecBreakdownModal({ product, targetProduct, onClose }: 
               {product.name}
             </p>
           </div>
-          {targetProduct && product.savings && (
+          {targetProduct && product.savings != null && product.savings > 0 && (
             <div className="flex-1 rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.06)" }}>
               <p className="text-xs font-semibold uppercase tracking-wide mb-1 text-green-700">
                 You Save
@@ -114,7 +110,7 @@ export default function SpecBreakdownModal({ product, targetProduct, onClose }: 
                 ${product.savings.toFixed(2)}
               </p>
               <p className="text-xs mt-0.5" style={{ color: "#7c4a00" }}>
-                {(((targetProduct.price - product.price) / targetProduct.price) * 100).toFixed(0)}% less
+                {(product.savingsPercent ?? 0).toFixed(0)}% less
               </p>
             </div>
           )}
@@ -167,10 +163,7 @@ export default function SpecBreakdownModal({ product, targetProduct, onClose }: 
                   )}
                   <td
                     className="py-2.5 px-3 text-center rounded font-medium"
-                    style={{
-                      background: winnerColors[row.winner].bg,
-                      color: winnerColors[row.winner].text !== "inherit" ? winnerColors[row.winner].text : "#3d2000",
-                    }}
+                    style={{ color: "#3d2000" }}
                   >
                     {row.alternative}
                   </td>

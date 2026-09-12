@@ -18,6 +18,11 @@ const FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSf0WtkQRAgue
 function LoadingSkeleton() {
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
+      {/* A first-time query is a live scrape of the retailer index, measured at
+          38-71s. Say so: an unexplained minute of skeleton reads as broken. */}
+      <p className="text-xs text-center" style={{ color: "#a16207" }}>
+        Searching retailers. A new product can take up to a minute.
+      </p>
       {[0, 1, 2].map((i) => (
         <div
           key={i}

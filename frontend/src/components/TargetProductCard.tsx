@@ -44,7 +44,7 @@ export default function TargetProductCard({ product }: Props) {
             {product.name}
           </h2>
           <p className="text-sm mb-2" style={{ color: "#7c4a00" }}>
-            {product.brand} · {product.retailer}
+            {[product.brand, product.retailer].filter(Boolean).join(" · ")}
           </p>
           <div className="flex items-center gap-3">
             <Stars rating={product.rating} />

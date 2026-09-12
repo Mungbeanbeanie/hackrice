@@ -4,6 +4,7 @@ import numpy as np
 
 from app import config
 from app.features.attribute_matrix import AttributeMatrix
+from app.features.svd import cosine_similarity
 from app.models import Product
 
 
@@ -25,11 +26,22 @@ def _build_weight_vector(
             if isinstance(spec.value, int | float) and spec.name not in spec_tier:
                 spec_tier[spec.name] = spec.weight_tier
 
+    # Each block is divided by the square root of its own width. After z-scoring
+    # every dimension carries unit variance, so a block's influence on the cosine
+    # grows with how many dimensions it has — and the text block has ~1536 of
+    # them against a handful of numeric specs. Without this the weights are
+    # decorative: the text block wins on count no matter what W says.
+    n_specs = len(matrix.spec_names)
+    spec_scale = n_specs**0.5 or 1.0
+    embedding_scale = matrix.embedding_dim**0.5 or 1.0
+
     spec_weights = [
-        config.CATEGORY_WEIGHTS[spec_tier.get(name, "secondary")]
+        config.CATEGORY_WEIGHTS[spec_tier.get(name, "secondary")] / spec_scale
         for name in matrix.spec_names
     ]
-    embedding_weights = [config.CATEGORY_WEIGHTS["soft"]] * matrix.embedding_dim
+    embedding_weights = [
+        config.CATEGORY_WEIGHTS["soft"] / embedding_scale
+    ] * matrix.embedding_dim
     return spec_weights + embedding_weights
 
 
@@ -52,13 +64,6 @@ def fit_standardization(
     )
 
 
-def _cosine_similarity(u: np.ndarray, v: np.ndarray) -> float:
-    denom = np.linalg.norm(u) * np.linalg.norm(v)
-    if denom == 0:
-        return 0.0
-    return float(np.dot(u, v) / denom)
-
-
 def scale_reference_vector(model: StandardizedModel, vector: list[float]) -> np.ndarray:
     return ((np.array(vector, dtype=float) - model.mu) / model.sigma) * model.weights
 
@@ -68,6 +73,6 @@ def compute_weighted_similarities(
 ) -> dict[str, float]:
     ref_scaled = scale_reference_vector(model, reference_vector)
     return {
-        product_id: _cosine_similarity(ref_scaled, model.scaled_rows[i])
+        product_id: cosine_similarity(ref_scaled, model.scaled_rows[i])
         for i, product_id in enumerate(model.product_ids)
     }

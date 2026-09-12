@@ -99,17 +99,27 @@ function ProductCard({
               >
                 {product.name}
               </h3>
+              {/* The payload carries a merchant, not a maker, so brand is
+                  usually empty — joining unconditionally left a stray "·". */}
               <p className="text-xs mt-0.5" style={{ color: "#7c4a00" }}>
-                {product.brand} · {product.retailer}
+                {[product.brand, product.retailer].filter(Boolean).join(" · ")}
               </p>
             </div>
             <div className="text-right flex-shrink-0">
               <p className="text-xl font-extrabold" style={cfg.accentStyle}>
                 ${product.price.toFixed(2)}
               </p>
-              {product.savings && (
+              {product.originalPrice != null && product.originalPrice > product.price && (
+                <p className="text-xs line-through" style={{ color: "#a16207" }}>
+                  ${product.originalPrice.toFixed(2)}
+                </p>
+              )}
+              {/* Guarded on > 0: a candidate pricier than the target used to
+                  render as "Save $-34". */}
+              {product.savings != null && product.savings > 0 && (
                 <p className="text-xs font-semibold text-green-600">
                   Save ${product.savings.toFixed(0)}
+                  {product.savingsPercent != null && ` (${product.savingsPercent.toFixed(0)}%)`}
                 </p>
               )}
             </div>

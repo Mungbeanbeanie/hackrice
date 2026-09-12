@@ -33,6 +33,7 @@ class WireProduct(BaseModel):
     specs: list[WireProductSpec]
     matchScore: float
     savings: float | None = None
+    savingsPercent: float | None = None
     tier: int
     badge: str | None = None
 
@@ -49,11 +50,22 @@ class SearchApiResponse(BaseModel):
     tiers: Tiers
 
 
+# Above this many words the input reads as a functional description rather than
+# a product name, so no target is resolved.
+#
+# Known limitation: a short functional phrase ("ergonomic memory foam pillow",
+# 4 words) resolves a target it should not, and the top result then becomes a
+# baseline it was never meant to be. Deciding from the top result's similarity
+# to the query instead would be accurate, but couples mode inference to scoring
+# for a wrong answer at one edge.
+EXACT_PRODUCT_MAX_WORDS = 4
+
+
 def _infer_mode(raw_input: str) -> SearchMode:
     text = raw_input.strip()
     if text.startswith(("http://", "https://")):
         return SearchMode.URL
-    if len(text.split()) <= 4:
+    if len(text.split()) <= EXACT_PRODUCT_MAX_WORDS:
         return SearchMode.EXACT_PRODUCT
     return SearchMode.DESCRIPTION
 
@@ -62,16 +74,26 @@ def _tier_to_int(tier: Tier) -> int:
     return {Tier.TIER_1: 1, Tier.TIER_2: 2, Tier.TIER_3: 3}[tier]
 
 
+def _format_spec(value: float | str) -> str:
+    # Extracted specs are floats, so "queen" survives but 6.0 would reach the UI
+    # chips as "6.0" and a review count as "1200.0".
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def _to_wire_product(
     product: Product, comparison: ComparisonResult | None = None
 ) -> WireProduct:
     if comparison is not None:
         match_score = round(comparison.similarity * 100, 1)
         savings = comparison.savings_amount
+        savings_percent = comparison.savings_percent
         tier = _tier_to_int(comparison.tier)
     else:
         match_score = 100.0
         savings = None
+        savings_percent = None
         tier = 1
 
     return WireProduct(
@@ -79,14 +101,20 @@ def _to_wire_product(
         name=product.title,
         brand=product.brand or "",
         price=product.price,
+        originalPrice=product.original_price,
         image=product.image_url or "",
         retailer=product.vendor,
+        retailerLogo=product.vendor_logo,
         url=product.product_url,
         rating=product.rating,
         reviewCount=product.review_count,
-        specs=[WireProductSpec(key=s.name, value=str(s.value)) for s in product.specs],
+        specs=[
+            WireProductSpec(key=s.name, value=_format_spec(s.value))
+            for s in product.specs
+        ],
         matchScore=match_score,
         savings=savings,
+        savingsPercent=round(savings_percent, 1) if savings_percent else None,
         tier=tier,
     )
 
@@ -126,9 +154,8 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
             tiers=Tiers(tier1=[], tier2=[], tier3=[]),
         )
 
-    matrix = attribute_matrix.build_attribute_matrix(candidates)
-    reference_vector = attribute_matrix.build_reference_vector(
-        matrix, search_text, product=target
+    matrix, reference_vector = attribute_matrix.build_vector_space(
+        candidates, search_text, target=target
     )
 
     svd_model = svd.fit_svd(matrix)
