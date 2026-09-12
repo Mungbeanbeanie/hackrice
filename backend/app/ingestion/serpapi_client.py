@@ -1,3 +1,4 @@
+import logging
 import re
 
 import httpx
@@ -5,22 +6,30 @@ import httpx
 from app import config
 from app.models import Product
 
+logger = logging.getLogger(__name__)
+
 SERPAPI_URL = "https://serpapi.com/search"
+REQUEST_TIMEOUT = 10.0
 
 
 def search_products(query: str) -> list[Product]:
     if not config.SERPAPI_API_KEY:
         raise RuntimeError("SERPAPI_API_KEY is not set")
 
-    response = httpx.get(
-        SERPAPI_URL,
-        params={
-            "engine": "google_shopping",
-            "q": query,
-            "api_key": config.SERPAPI_API_KEY,
-        },
-    )
-    response.raise_for_status()
+    try:
+        response = httpx.get(
+            SERPAPI_URL,
+            params={
+                "engine": "google_shopping",
+                "q": query,
+                "api_key": config.SERPAPI_API_KEY,
+            },
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.exception("SerpAPI request failed for query=%r", query)
+        raise RuntimeError(f"SerpAPI request failed: {exc}") from exc
 
     return [_parse_product(raw) for raw in response.json().get("shopping_results", [])]
 
