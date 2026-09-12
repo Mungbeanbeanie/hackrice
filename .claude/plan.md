@@ -26,8 +26,8 @@ Mission: implement the financial optimization product comparison pipeline descri
 - [x] `backend/app/features/standardize.py` — Layer 2: per-category z-score standardization + diagonal weight matrix $\mathbf{W}$
 
 ## Phase 4: Scoring
-- [ ] `backend/app/scoring/quality.py` — Layer 3: Bayesian quality estimator $Q$
-- [ ] `backend/app/scoring/value.py` — Layer 4: value optimization score $V$, tier assignment (1/2/3)
+- [x] `backend/app/scoring/quality.py` — Layer 3: Bayesian quality estimator $Q$
+- [x] `backend/app/scoring/value.py` — Layer 4: value optimization score $V$, tier assignment (1/2/3)
 
 ## Phase 5: API
 - [ ] `backend/app/routes/search.py` — `POST /api/search`, branches on `SearchQuery.mode` (resolve target or skip), orchestrates ingestion → features → scoring, returns tiered results (target product omitted from response in `description` mode)

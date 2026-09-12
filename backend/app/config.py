@@ -6,6 +6,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Layer 1 SVD default latent concept count (overview.md §3.1).
 SVD_RANK = int(os.getenv("SVD_RANK", "10"))
 
+# Layer 4 quality safety filter + tier thresholds (overview.md §1.2, §5.1).
+MIN_QUALITY_THRESHOLD = float(os.getenv("MIN_QUALITY_THRESHOLD", "3.5"))
+SPEC_MATCH_TIER1 = float(os.getenv("SPEC_MATCH_TIER1", "0.85"))
+SPEC_MATCH_TIER2 = float(os.getenv("SPEC_MATCH_TIER2", "0.6"))
+
 # Vultr-managed cache connection string.
 CACHE_URL = os.getenv("CACHE_URL")
 
