@@ -1,8 +1,9 @@
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from app import analytics
 from app.features import attribute_matrix, standardize, svd
 from app.ingestion import serpapi_client, target_resolver
 from app.models import ComparisonResult, Product, SearchMode, Tier
@@ -127,7 +128,7 @@ def _to_wire_product(
 
 
 @router.post("/api/search", response_model=SearchApiResponse)
-def search(body: SearchRequestBody) -> SearchApiResponse:
+def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
     mode = _infer_mode(body.query)
     search_text = (
         target_resolver.url_to_text(body.query)
@@ -143,6 +144,11 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
         results = serpapi_client.search_products(search_text)
     except RuntimeError as exc:
         raise HTTPException(502, f"Product search upstream unavailable: {exc}") from exc
+
+    # Recorded here, before the mode branch, so there is one call site rather
+    # than one per return path — and so searches that die on the 404 below
+    # still count as the real user attempts they were.
+    analytics.record_search(request, body.query, mode.value, len(results))
 
     if mode == SearchMode.DESCRIPTION:
         target, candidates = None, results

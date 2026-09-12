@@ -21,6 +21,10 @@ SESSION_TTL_DAYS = int(os.getenv("SESSION_TTL_DAYS", "30"))
 # from ever sending the cookie back over HTTP. Flip once a domain + TLS exist.
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
+# Shared password for the /api/admin dashboard, over HTTP Basic. Unset means
+# the route 503s rather than serving signup/search data to anyone who asks.
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
 # Layer 1 SVD default latent concept count (overview.md §3.1).
 SVD_RANK = int(os.getenv("SVD_RANK", "10"))
 

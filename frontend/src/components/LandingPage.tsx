@@ -2,6 +2,7 @@ import { ArrowDown, ArrowRight, Check } from "lucide-react";
 
 import HoneyDrop from "@/components/HoneyDrop";
 import SearchBar from "@/components/SearchBar";
+import TermsLink from "@/components/TermsLink";
 
 interface Props {
   query: string;
@@ -409,6 +410,9 @@ export default function LandingPage({ query, onQueryChange, onSearch, onGoSignin
           >
             Send feedback
           </a>
+          <span className="text-neutral-600" style={{ fontSize: "12.5px" }}>
+            <TermsLink />
+          </span>
         </div>
       </footer>
     </div>

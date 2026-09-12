@@ -16,6 +16,12 @@ services:
       SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       COUPON_API: ${COUPON_API:-}
+      # Accounts: without these two the sign-in flow 502s on the box, so no
+      # account rows ever get created. ADMIN_PASSWORD gates /api/admin, which
+      # 503s while unset rather than serving that data open.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       # The `cache` service below. Not a secret and identical per environment,
       # so it defaults here rather than being config. `:-` also covers the empty
       # string the deploy job writes when the optional CACHE_URL secret is unset.

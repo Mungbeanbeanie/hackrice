@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { requestSignInCode, verifySignInCode } from "@/api/client";
 import HoneyDrop from "@/components/HoneyDrop";
+import TermsLink from "@/components/TermsLink";
 
 interface Props {
   onGoLanding: () => void;
@@ -98,6 +99,27 @@ export default function SignInPage({ onGoLanding, onSignedIn }: Props) {
                   className="w-full rounded-full border border-divider bg-neutral-100 text-text outline-none"
                   style={{ padding: "var(--space-3) var(--space-4)", fontSize: "15px" }}
                 />
+              </div>
+              {/* `required` is the whole gate: the browser blocks the submit
+                  event outright, so handleRequestCode never fires. Acceptance
+                  is not sent to or stored by the backend. */}
+              <div className="flex items-start" style={{ gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
+                <input
+                  id="terms"
+                  type="checkbox"
+                  required
+                  disabled={busy}
+                  className="cursor-pointer flex-shrink-0"
+                  style={{ marginTop: "3px", accentColor: "var(--color-accent)" }}
+                />
+                <label
+                  htmlFor="terms"
+                  className="text-neutral-800 cursor-pointer"
+                  style={{ fontSize: "12.5px", lineHeight: 1.4 }}
+                >
+                  I agree to the <TermsLink /> and to nectarly storing my email address and the searches I
+                  run.
+                </label>
               </div>
               <button
                 type="submit"

@@ -35,6 +35,20 @@ def init_schema() -> None:
             )
             """
         )
+        # account_id is nullable on purpose: search needs no sign-in, so most
+        # rows are anonymous. They still count as usage.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS searches (
+                id BIGSERIAL PRIMARY KEY,
+                account_id UUID REFERENCES accounts(id),
+                query TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                result_count INT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS coupon_offers (

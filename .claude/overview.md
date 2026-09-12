@@ -249,10 +249,17 @@ The search + results surface:
 
 ### 6.1 Account Creation
 * Email-based accounts — user signs up/logs in with an email address (mechanism: magic-link or verification-code email, no password storage for MVP — avoids password hashing/reset flows; revisit if a password flow is explicitly wanted).
-* Backed by the Vultr Managed Postgres cluster referenced in `deploy/README.md` §1 (provisioned but currently unused — `DATABASE_URL` exists in `config.py`/`main.py` but nothing reads it yet). This feature is what activates that connection.
+* Backed by the Vultr Managed Postgres cluster referenced in `deploy/README.md` §1. `db.py` bootstraps the schema on startup and `accounts/store.py` reads/writes it, so `DATABASE_URL` is live rather than the dead config it originally was.
 * Core account fields: `id`, `email` (unique), `created_at`.
+* Sign-up is gated on a required terms checkbox disclosing that we store the user's email and their searches (`plan.md` Phase 12). The gate is **UI-only** — the browser's native `required` validation blocks the form, but acceptance is never sent to or stored by the backend, so there is no per-account consent record to audit. Add `accepted_terms_at` if that ever needs proving.
 
 ### 6.2 Shopping History (exploratory — not yet committed)
 * Tentative: persist each search (`SearchQuery` + resolved target + returned tiers) against the logged-in user's account, so a user can revisit past comparisons.
-* Open questions to resolve before implementation: what "history" actually shows (raw past searches vs. saved/starred alternatives), retention period, whether it drives future personalization (e.g. weighting $V$ by past category preferences) or is purely a log.
+* Partially superseded by §6.3: the raw searches of signed-in users **are** now persisted and account-linked. What remains undecided is the user-facing half — whether history surfaces as raw past searches or saved/starred alternatives, its retention period, and whether it drives personalization (e.g. weighting $V$ by past category preferences). §6.3 stores neither the resolved target nor the returned tiers, so a "revisit this comparison" feature still needs a schema change.
 * Not scoped into `plan.md` yet — pending a decision on the above before it becomes checklist items.
+
+### 6.3 Search Log & Admin Dashboard (implemented — `plan.md` Phase 13)
+* Every `/api/search` call is logged to a `searches` table (`query`, `mode`, `result_count`, `created_at`, nullable `account_id`). Search requires no sign-in, so most rows are anonymous — that is deliberate, not a gap.
+* Recorded by `analytics.py`, which **never raises**: a broken or unreachable database degrades tracking, never a user's search.
+* `GET /api/admin` renders signups and search activity as server-rendered HTML behind HTTP Basic (`ADMIN_PASSWORD`), and 503s while that is unset. Deliberately not part of the React app — no new frontend surface, no routing change.
+* This is the **log** half of §6.2. It is internal-facing only: nothing about it is exposed to the user whose searches it records.

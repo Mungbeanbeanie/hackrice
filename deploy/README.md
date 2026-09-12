@@ -32,6 +32,9 @@ Remaining:
 - `SERPAPI_API_KEY` and `OPENAI_API_KEY` in each GitHub Environment (step 3).
   Neither is set, so every deploy writes them into `.env` as empty strings and
   search fails on the box until they exist.
+- `RESEND_API_KEY`, `SESSION_SECRET` and `ADMIN_PASSWORD` in each GitHub
+  Environment (step 3). Until they exist, sign-in 502s on the box — so the
+  `accounts` table stays empty — and `/api/admin` 503s.
 - The per-environment Postgres users and the staging connection limit (step 1) —
   the cluster and a `DATABASE_URL` per environment exist, but whether that URL
   uses a per-environment user or the cluster admin has not been checked.
@@ -201,6 +204,9 @@ Per environment, add these **secrets**:
 | `SERPAPI_API_KEY` | SerpAPI key. Unset writes an empty line to `.env` and every search fails with `SERPAPI_API_KEY is not set` |
 | `OPENAI_API_KEY` | OpenAI key for `text-embedding-3-small` |
 | `COUPON_API` | CouponAPI.org key (Phase 9, unused until `coupons/client.py` lands). Unset is harmless for now — nothing reads it yet. |
+| `RESEND_API_KEY` | Resend key for the sign-in verification email. Unset makes `POST /api/auth/request-code` 502, so nobody can create an account |
+| `SESSION_SECRET` | HMAC key for session cookies — `openssl rand -hex 32`. Unset makes `POST /api/auth/verify` 502. Use a **different** value per environment |
+| `ADMIN_PASSWORD` | Shared password for the `/api/admin` dashboard, over HTTP Basic — `openssl rand -hex 32`. Unset makes that route 503 rather than serving signup/search data open |
 
 Every one of these is written into `.env` by the deploy job on each run, so a
 value that exists only in a hand-edited `.env` on the box is overwritten by the
