@@ -168,10 +168,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-
-      # ponytail: fast-forward only. Fails loudly if dev has commits main lacks
-      # — that is real divergence and wants a PR, not an automatic push. Also
-      # never applies to squash-merged PRs, whose commits are not ancestors.
+      # No checkout: moving one ref does not need a clone, and `git push` from
+      # the default shallow clone cannot verify the fast-forward locally — it
+      # rejects with "fetch first" even when the push is valid.
+      #
+      # ponytail: PATCH without `force` is fast-forward-only server-side. It
+      # 422s if dev has commits main lacks — real divergence, which wants a PR,
+      # not an automatic push. Also never applies to squash-merged PRs, whose
+      # commits are not ancestors.
       - name: Fast-forward dev to main
-        run: git push origin ${{ github.sha }}:refs/heads/dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X PATCH "repos/${{ github.repository }}/git/refs/heads/dev" \
+            -f sha=${{ github.sha }}
