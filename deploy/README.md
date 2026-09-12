@@ -32,6 +32,11 @@ Remaining:
 - `SERPAPI_API_KEY` and `OPENAI_API_KEY` in each GitHub Environment (step 3).
   Neither is set, so every deploy writes them into `.env` as empty strings and
   search fails on the box until they exist.
+- `RESEND_API_KEY` and `SESSION_SECRET` in each GitHub Environment (step 3) —
+  same story for `/api/auth/*`. Also: the default sender is Resend's sandbox
+  address, which only delivers to the Resend account owner's own inbox. A
+  verified domain (and `MAIL_FROM_ADDRESS` pointed at it) is what makes
+  verification email reach anyone else.
 - The per-environment Postgres users and the staging connection limit (step 1) —
   the cluster and a `DATABASE_URL` per environment exist, but whether that URL
   uses a per-environment user or the cluster admin has not been checked.
@@ -200,6 +205,8 @@ Per environment, add these **secrets**:
 | `DATABASE_URL` | the Vultr Postgres connection string for that environment's database |
 | `SERPAPI_API_KEY` | SerpAPI key. Unset writes an empty line to `.env` and every search fails with `SERPAPI_API_KEY is not set` |
 | `OPENAI_API_KEY` | OpenAI key for `text-embedding-3-small` |
+| `RESEND_API_KEY` | Resend key, for the account verification email. Unset => `/api/auth/request-code` 502s; nothing else is affected |
+| `SESSION_SECRET` | `openssl rand -hex 32`. **Different per environment**, and stable once set — rotating it invalidates every issued session cookie |
 
 Every one of these is written into `.env` by the deploy job on each run, so a
 value that exists only in a hand-edited `.env` on the box is overwritten by the
@@ -267,6 +274,15 @@ easier to audit.
 There is no ORM and no migration tool, because there is no data model. When the
 first table lands, the migration step belongs in the deploy job **between**
 `docker compose pull` and `docker compose up -d`:
+
+> **Update (Phase 8 accounts):** the first tables have landed, and they bootstrap
+> themselves — `app/db.py:init_schema()` runs `CREATE TABLE IF NOT EXISTS` for
+> `accounts` and `verification_codes` from the FastAPI lifespan hook on every
+> start. Nothing to add to the deploy job yet. That trick only covers creating
+> tables; the first time a column has to *change*, it stops working and the
+> Alembic step below is the answer. The bootstrap is wrapped in a try/except
+> that logs and continues, so an unreachable database leaves `/api/health` and
+> `/api/search` up and only `/api/auth/*` broken.
 
 ```sh
 docker compose run --rm api alembic upgrade head
