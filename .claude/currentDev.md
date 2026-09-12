@@ -1,2 +1,1 @@
-## Status: Clear
-No active task.
+## Status: Clear\nNo active task.
