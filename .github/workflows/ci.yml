@@ -152,10 +152,17 @@ jobs:
       - name: Smoke test
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
         run: |
+          # Once SITE_ADDRESS is a hostname, Caddy redirects :80 -> :443, and
+          # curl without -L returns an empty 308 body that never matches below.
+          # Test what users actually hit. ":80"-style values stay on the IP.
+          URL="http://$SSH_HOST/api/health"
+          case "$SITE_ADDRESS" in "" | :*) ;; *) URL="https://$SITE_ADDRESS/api/health" ;; esac
+
           # A deploy that returns green without the app answering is not a deploy.
           for i in $(seq 1 10); do
-            if curl -fsS "http://$SSH_HOST/api/health" | grep -q '"ok"'; then
+            if curl -fsS "$URL" | grep -q '"ok"'; then
               echo "healthy"; exit 0
             fi
             echo "attempt $i: not up yet"; sleep 3
