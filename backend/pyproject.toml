@@ -2,7 +2,11 @@
 name = "hackrice-backend"
 version = "0.1.0"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "httpx>=0.28",
+    "uvicorn[standard]>=0.32",
+]
 
 [dependency-groups]
 dev = [

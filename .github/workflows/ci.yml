@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   pull_request:
@@ -6,10 +6,11 @@ on:
   push:
     branches: [dev, main]
 
-# Cancel superseded runs on the same ref instead of burning minutes on stale commits.
+# Superseded PR runs get cancelled to save minutes. Push runs are NOT cancelled:
+# they deploy, and killing one mid-deploy leaves the box half-updated.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
@@ -71,3 +72,89 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Deploy lives in this file rather than its own so it can simply `needs` the
+  # check jobs. A separate workflow would need `workflow_run`, which runs the
+  # default branch's copy of the workflow and makes the merge-to-deploy path
+  # harder to follow than it deserves to be.
+  deploy:
+    # DEPLOY_ENABLED is a repository variable, set to "true" once both GitHub
+    # Environments have their secrets. Until then this job skips rather than
+    # failing red against infrastructure that does not exist yet.
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    # main -> production box, dev -> staging box. The two GitHub Environments
+    # supply different SSH_HOST/DATABASE_URL, so the job body is identical.
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # GHCR paths must be lowercase; the owner name is not.
+      IMAGE_PREFIX: ghcr.io/mungbeanbeanie/hackrice
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images
+        run: |
+          docker build -t "$IMAGE_PREFIX-api:$IMAGE_TAG" backend
+          docker build -t "$IMAGE_PREFIX-web:$IMAGE_TAG" frontend
+          docker push "$IMAGE_PREFIX-api:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX-web:$IMAGE_TAG"
+
+      - name: Deploy over SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # ponytail: trust-on-first-use for the host key. Pin it via an
+          # SSH_KNOWN_HOSTS secret if the runner->Vultr path ever needs to be
+          # MITM-proof.
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          TARGET="$SSH_USER@$SSH_HOST"
+
+          # Config is version-controlled and pushed each deploy, so the server
+          # never becomes the only place a setting lives.
+          printf 'IMAGE_TAG=%s\nDATABASE_URL=%s\nSITE_ADDRESS=%s\n' \
+            "$IMAGE_TAG" "$DATABASE_URL" "$SITE_ADDRESS" > .env
+
+          ssh "$TARGET" 'mkdir -p /srv/hackrice'
+          scp deploy/docker-compose.yml .env "$TARGET:/srv/hackrice/"
+
+          # Log the box into GHCR with the run's own short-lived token, piped
+          # over stdin — no long-lived registry credential sits on the server.
+          printf '%s' "$GHCR_TOKEN" \
+            | ssh "$TARGET" "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+
+          ssh "$TARGET" 'cd /srv/hackrice && docker compose pull && docker compose up -d --remove-orphans && docker image prune -f'
+
+      - name: Smoke test
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          # A deploy that returns green without the app answering is not a deploy.
+          for i in $(seq 1 10); do
+            if curl -fsS "http://$SSH_HOST/api/health" | grep -q '"ok"'; then
+              echo "healthy"; exit 0
+            fi
+            echo "attempt $i: not up yet"; sleep 3
+          done
+          echo "health check never passed"; exit 1

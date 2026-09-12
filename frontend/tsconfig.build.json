@@ -1,7 +1,0 @@
-// Build config: same as tsconfig.json but without tests, so `npm run build`
-// doesn't emit *.test.js into dist/ (vitest would collect those as duplicates).
-// Typechecking still uses the base config, so tests stay covered.
-{
-  "extends": "./tsconfig.json",
-  "exclude": ["src/**/*.test.ts"]
-}
