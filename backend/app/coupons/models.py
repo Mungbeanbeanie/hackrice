@@ -8,4 +8,5 @@ class CouponOffer(BaseModel):
     discount_description: str
     store: str
     expires_at: datetime | None
-    verified_at: datetime | None
+    start_date: datetime | None
+    rating: int

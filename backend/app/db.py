@@ -35,3 +35,16 @@ def init_schema() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS coupon_offers (
+                offer_id TEXT PRIMARY KEY,
+                store TEXT NOT NULL,
+                code TEXT,
+                discount_description TEXT NOT NULL,
+                expires_at TIMESTAMPTZ,
+                start_date TIMESTAMPTZ,
+                rating INTEGER NOT NULL
+            )
+            """
+        )
