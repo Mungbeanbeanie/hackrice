@@ -1,0 +1,16 @@
+{
+  "name": "nectarly-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/content.ts src/background.ts --bundle --outdir=. --format=iife",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.0.0",
+    "vitest": "^5.0.0"
+  }
+}

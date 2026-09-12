@@ -13,6 +13,7 @@ branch merges into a tested/prod pipeline.
 | 2026-09-12 | backend/pyproject.toml | + `psycopg[binary]>=3.1` | Phase 8 accounts — Postgres connection (`db.py`) |
 | 2026-09-12 | backend/pyproject.toml | + `psycopg-pool>=3.2` | Phase 8 accounts — connection pooling (`db.py`) |
 | 2026-09-12 | frontend/package.json | + `lucide-react@^1.45.0` | Organic redesign — icon set mandated by design handoff (stroke-width 2.75) |
+| 2026-09-12 | extension/package.json (new file) | + `esbuild@^0.28.0`, `typescript@^5.0.0`, `vitest@^5.0.0`, `@types/chrome@^0.0.280` | Phase 14 browser extension — build/typecheck/test tooling for the new `extension/` package. Not yet covered by `instructions.md`'s Dependency Rule (which names only backend/frontend files) — logged here anyway in the rule's spirit; pending user decision on whether to extend the rule's file list. |
 
 ## Merged
 
