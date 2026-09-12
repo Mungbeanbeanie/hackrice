@@ -1,6 +1,7 @@
 import os
 
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Vultr-managed cache connection string.
 CACHE_URL = os.getenv("CACHE_URL")

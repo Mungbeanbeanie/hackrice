@@ -20,7 +20,7 @@ Mission: implement the financial optimization product comparison pipeline descri
 - [x] `backend/app/cache.py` — Vultr-backed cache layer (get/set search responses and embeddings by query hash)
 
 ## Phase 3: Feature Engineering
-- [ ] `backend/app/features/embeddings.py` — `text-embedding-3-small` wrapper for title/spec text and raw query text (`description` mode)
+- [x] `backend/app/features/embeddings.py` — `text-embedding-3-small` wrapper for title/spec text and raw query text (`description` mode)
 - [ ] `backend/app/features/attribute_matrix.py` — builds the product-attribute matrix $A$ from raw specs + embeddings
 - [ ] `backend/app/features/svd.py` — Layer 1: SVD decomposition of $A$, latent projection, cosine similarity between reference vector (target product, or embedded query in `description` mode) and each candidate
 - [ ] `backend/app/features/standardize.py` — Layer 2: per-category z-score standardization + diagonal weight matrix $\mathbf{W}$
