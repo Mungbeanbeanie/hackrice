@@ -22,14 +22,26 @@ def _get_client() -> openai.OpenAI:
     return _client
 
 
+# Wrapped the way serpapi_client wraps its HTTP errors: an exhausted quota or a
+# stalled embeddings call is an upstream outage the route can answer with a 502,
+# and openai's own exception types shouldn't leak past this module to say so.
+def _create(texts: list[str]) -> list[list[float]]:
+    try:
+        response = _get_client().embeddings.create(
+            model=EMBEDDING_MODEL, input=texts
+        )
+    except openai.OpenAIError as exc:
+        raise RuntimeError(f"Embedding request failed: {exc}") from exc
+    return [data.embedding for data in response.data]
+
+
 def embed_text(text: str) -> list[float]:
     key = cache.hash_key(text)
     cached = cache.get_cached_embedding(key)
     if cached is not None:
         return cached
 
-    response = _get_client().embeddings.create(model=EMBEDDING_MODEL, input=text)
-    embedding = response.data[0].embedding
+    embedding = _create([text])[0]
     cache.set_cached_embedding(key, embedding)
     return embedding
 
@@ -40,13 +52,10 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
     missing_indices = [i for i, embedding in enumerate(cached) if embedding is None]
     if missing_indices:
-        response = _get_client().embeddings.create(
-            model=EMBEDDING_MODEL,
-            input=[texts[i] for i in missing_indices],
-        )
-        for i, data in zip(missing_indices, response.data, strict=True):
-            cached[i] = data.embedding
-            cache.set_cached_embedding(keys[i], data.embedding)
+        fetched = _create([texts[i] for i in missing_indices])
+        for i, embedding in zip(missing_indices, fetched, strict=True):
+            cached[i] = embedding
+            cache.set_cached_embedding(keys[i], embedding)
 
     # every None slot was filled above (zip strict=True), so no Nones remain
     return cast(list[list[float]], cached)

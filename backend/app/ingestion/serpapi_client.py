@@ -18,9 +18,51 @@ SERPAPI_URL = "https://serpapi.com/search"
 # 90s is deliberately well above the 52s worst case observed. The old 25s was
 # below it, and every search died on the read.
 #
-# ponytail: no retry. One call with a 90s budget beats two attempts at 180s,
-# which no browser waits through. Add one only if stalls prove intermittent.
+# ponytail: retry 5xx once, never timeouts. SerpAPI 503s when its own scrape
+# fails — observed intermittent, the same query succeeding on the next call, so
+# the "add one only if stalls prove intermittent" note above is now settled. A
+# 5xx comes back fast, so the retry costs little; retrying a timeout would stack
+# two 90s reads into 180s, which no browser waits through.
 REQUEST_TIMEOUT = httpx.Timeout(connect=5.0, read=90.0, write=5.0, pool=5.0)
+
+
+def _upstream_error(query: str, exc: httpx.HTTPError) -> RuntimeError:
+    # httpx puts the full request URL in its exception message, and our api_key
+    # rides in that URL's query string. Interpolating the exception leaked the
+    # key into the 502 body the browser renders and into the logged traceback,
+    # so report the status or the exception class and never the URL itself.
+    reason = (
+        f"HTTP {exc.response.status_code}"
+        if isinstance(exc, httpx.HTTPStatusError)
+        else type(exc).__name__
+    )
+    logger.error("SerpAPI request failed for query=%r: %s", query, reason)
+    return RuntimeError(f"SerpAPI request failed: {reason}")
+
+
+def _fetch(query: str) -> httpx.Response:
+    for attempt in range(2):
+        try:
+            response = httpx.get(
+                SERPAPI_URL,
+                params={
+                    "engine": "google_shopping",
+                    "q": query,
+                    "api_key": config.SERPAPI_API_KEY,
+                },
+                timeout=REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            return response
+        except httpx.HTTPError as exc:
+            server_error = (
+                isinstance(exc, httpx.HTTPStatusError)
+                and exc.response.status_code >= 500
+            )
+            if attempt == 1 or not server_error:
+                raise _upstream_error(query, exc) from None
+
+    raise AssertionError("unreachable")  # the loop either returns or raises
 
 
 def search_products(query: str) -> list[Product]:
@@ -35,20 +77,7 @@ def search_products(query: str) -> list[Product]:
     if cached is not None:
         return cached
 
-    try:
-        response = httpx.get(
-            SERPAPI_URL,
-            params={
-                "engine": "google_shopping",
-                "q": query,
-                "api_key": config.SERPAPI_API_KEY,
-            },
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-    except httpx.HTTPError as exc:
-        logger.exception("SerpAPI request failed for query=%r", query)
-        raise RuntimeError(f"SerpAPI request failed: {exc}") from exc
+    response = _fetch(query)
 
     products = [
         _parse_product(raw, i)

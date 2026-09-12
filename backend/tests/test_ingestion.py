@@ -2,7 +2,9 @@ import httpx
 import pytest
 
 from app import config
-from app.ingestion import serpapi_client
+from app.ingestion import serpapi_client, target_resolver
+from app.models import SearchMode
+from app.routes import search
 
 
 def test_raises_when_key_unset(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -106,3 +108,80 @@ def test_parse_product_handles_explicit_nulls() -> None:
 def test_parse_products_get_unique_ids_without_identifiers() -> None:
     products = [serpapi_client._parse_product({}, i) for i in range(3)]
     assert len({p.id for p in products}) == 3
+
+
+# The pasted-link regression: a scheme-less Amazon URL was read as a <=4-word
+# exact-product query, and even with a scheme the old last-segment rule
+# extracted the "ref=sr_1_6" tracking tag instead of the product slug. Both
+# reached SerpAPI as nonsense and came back as "Target product not found".
+AMAZON_URL = (
+    "amazon.com/Retrospec-Dakota-Bicycle-Skateboard-Helmet"
+    "/dp/B094PPPR3R/ref=sr_1_6?crid=UNUBOM35S1DI&keywords=scooter%2Bhelmet&th=1"
+)
+
+
+@pytest.mark.parametrize("url", [AMAZON_URL, f"https://{AMAZON_URL}"])
+def test_pasted_product_url_resolves_to_slug(url: str) -> None:
+    assert search._infer_mode(url) is SearchMode.URL
+    assert target_resolver.url_to_text(url) == (
+        "Retrospec Dakota Bicycle Skateboard Helmet"
+    )
+
+
+def test_plain_text_query_is_not_treated_as_url() -> None:
+    assert search._infer_mode("scooter helmet") is SearchMode.EXACT_PRODUCT
+
+
+def _response(status: int) -> httpx.Response:
+    # A real URL carrying a real-looking key, so the leak test has something to find.
+    request = httpx.Request(
+        "GET", f"https://serpapi.com/search?q=Iphone&api_key={LEAKY_KEY}"
+    )
+    return httpx.Response(status, json={"shopping_results": []}, request=request)
+
+
+LEAKY_KEY = "9782eb7950be7fdf50c8d3a0c4048bb0"
+
+
+def test_api_key_never_reaches_the_error_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(config, "SERPAPI_API_KEY", LEAKY_KEY)
+    monkeypatch.setattr(serpapi_client.cache, "_get", lambda key: None)
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: _response(503))
+
+    with pytest.raises(RuntimeError) as caught:
+        serpapi_client.search_products("Iphone")
+
+    # Covers the chained __cause__ too: httpx's own message carries the URL.
+    assert LEAKY_KEY not in str(caught.value)
+    assert LEAKY_KEY not in repr(caught.getrepr(chain=True))
+
+
+def test_retries_once_on_server_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "SERPAPI_API_KEY", "fake-key")
+    monkeypatch.setattr(serpapi_client.cache, "_get", lambda key: None)
+    monkeypatch.setattr(serpapi_client.cache, "_setex", lambda k, ttl, p: None)
+
+    statuses = iter([503, 200])
+    monkeypatch.setattr(httpx, "get", lambda *a, **kw: _response(next(statuses)))
+
+    assert serpapi_client.search_products("Iphone") == []
+
+
+def test_client_error_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "SERPAPI_API_KEY", "fake-key")
+    monkeypatch.setattr(serpapi_client.cache, "_get", lambda key: None)
+
+    calls = 0
+
+    def fake_get(*args: object, **kwargs: object) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return _response(401)
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    with pytest.raises(RuntimeError, match="HTTP 401"):
+        serpapi_client.search_products("Iphone")
+    assert calls == 1

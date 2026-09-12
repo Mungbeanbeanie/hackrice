@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -51,7 +53,10 @@ class SearchApiResponse(BaseModel):
 
 def _infer_mode(raw_input: str) -> SearchMode:
     text = raw_input.strip()
-    if text.startswith(("http://", "https://")):
+    # A pasted link routinely loses its scheme ("amazon.com/dp/..."), and since
+    # a URL carries no whitespace it would then pass the <=4-word exact-product
+    # test and get sent to SerpAPI verbatim, which matches nothing.
+    if text.startswith(("http://", "https://")) or re.match(r"^[\w-]+(\.[\w-]+)+/", text):
         return SearchMode.URL
     if len(text.split()) <= 4:
         return SearchMode.EXACT_PRODUCT
@@ -126,10 +131,16 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
             tiers=Tiers(tier1=[], tier2=[], tier3=[]),
         )
 
-    matrix = attribute_matrix.build_attribute_matrix(candidates)
-    reference_vector = attribute_matrix.build_reference_vector(
-        matrix, search_text, product=target
-    )
+    # Same treatment as the search call above: an embedding outage is an
+    # upstream failure, not a bug in this handler, so it gets a 502 with a
+    # reason rather than a bare 500.
+    try:
+        matrix = attribute_matrix.build_attribute_matrix(candidates)
+        reference_vector = attribute_matrix.build_reference_vector(
+            matrix, search_text, product=target
+        )
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Embedding service unavailable: {exc}") from exc
 
     svd_model = svd.fit_svd(matrix)
     similarities = svd.compute_similarities(svd_model, reference_vector)
