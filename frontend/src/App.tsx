@@ -1,82 +1,56 @@
 import { useState } from "react";
+import { AlertCircle, ArrowLeft, Search, User } from "lucide-react";
 
 import { searchProducts } from "@/api/client";
-import type { Product, SearchResponse } from "@/api/client";
+import type { Group, Product, SearchResponse } from "@/api/client";
 import SearchBar from "@/components/SearchBar";
 import TargetProductCard from "@/components/TargetProductCard";
-import AlternativeTierList from "@/components/AlternativeTierList";
+import AlternativeGroups, { GROUP_ORDER } from "@/components/AlternativeGroups";
+import ComparisonTable from "@/components/ComparisonTable";
 import SpecBreakdownModal from "@/components/SpecBreakdownModal";
+import LandingPage from "@/components/LandingPage";
+import SignInPage from "@/components/SignInPage";
+import ExtensionPanel from "@/components/ExtensionPanel";
 import HoneyDrop from "@/components/HoneyDrop";
 
+type Screen = "landing" | "app" | "signin" | "extension";
 type AppState = "idle" | "loading" | "results" | "error";
+type View = "ranked" | "table";
 
-// ponytail: a Google Form stands in for a real feedback endpoint because the
-// repo has no working datastore yet — an endpoint would mean provisioning one
-// first. Replace with POST /api/feedback once there is somewhere to put it.
-const FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSf0WtkQRAguepMWqBOKYo-e3HQR2Ed6yip4oglBy49RQEGAkg/viewform?usp=publish-editor";
-
-function LoadingSkeleton() {
-  return (
-    <div className="flex flex-col gap-4 animate-fade-in">
-      {/* A first-time query is a live scrape of the retailer index, measured at
-          38-71s. Say so: an unexplained minute of skeleton reads as broken. */}
-      <p className="text-xs text-center" style={{ color: "#a16207" }}>
-        Searching retailers. A new product can take up to a minute.
-      </p>
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="skeleton rounded-2xl h-24"
-          style={{ animationDelay: `${i * 0.1}s`, opacity: 1 - i * 0.15 }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ErrorPanel({ message }: { message: string }) {
-  return (
-    <div className="glass-card honey-shadow rounded-3xl p-6 text-center animate-fade-in-up">
-      <h2 className="text-base font-bold mb-1.5" style={{ color: "#7c4a00" }}>
-        Search unavailable
-      </h2>
-      <p className="text-sm font-mono break-words" style={{ color: "#a16207" }}>
-        {message}
-      </p>
-    </div>
-  );
+function flattenGroups(groups: Record<Group, Product[]>): Product[] {
+  return GROUP_ORDER.flatMap((g) => groups[g]);
 }
 
 function EmptyState() {
+  const modes = [
+    { label: "Paste a link", sub: "Any retailer product page" },
+    { label: "Name a product", sub: "Brand and model, as you'd say it" },
+    { label: "Describe the job", sub: "No target — we rank against the description" },
+  ];
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-5 animate-fade-in">
-      <div className="animate-drop-bounce">
-        <HoneyDrop size={72} />
+    <div
+      className="mx-auto text-center animate-soft-in"
+      style={{ maxWidth: "620px", margin: "clamp(40px, 8vh, 90px) auto" }}
+    >
+      <div className="mx-auto animate-bob" style={{ width: 76, height: 88 }}>
+        <HoneyDrop size={76} />
       </div>
-      <div className="text-center">
-        <h2 className="text-xl font-bold mb-1.5" style={{ color: "#7c4a00" }}>
-          Find sweeter deals
-        </h2>
-        <p className="text-sm max-w-xs" style={{ color: "#a16207" }}>
-          Paste a product URL, search by name, or describe what you need — we find the best quality alternatives at the lowest price.
-        </p>
-      </div>
-      <div className="flex gap-4 text-center">
-        {[
-          { label: "Paste URL", sub: "From any retailer" },
-          { label: "Search Name", sub: "Exact product match" },
-          { label: "Describe It", sub: "We find alternatives" },
-        ].map((tip) => (
-          <div
-            key={tip.label}
-            className="glass-card rounded-2xl px-4 py-3 text-center"
-            style={{ minWidth: "90px" }}
-          >
-            <p className="text-xs font-semibold" style={{ color: "#7c4a00" }}>
-              {tip.label}
-            </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#a16207" }}>
-              {tip.sub}
+      <h2 style={{ fontSize: "clamp(26px, 3.4vw, 34px)", lineHeight: 1.14, margin: "var(--space-6) 0 var(--space-2)" }}>
+        Show us what you were about to buy.
+      </h2>
+      <p className="text-neutral-800 mx-auto" style={{ maxWidth: "38em", margin: "0 auto var(--space-6)" }}>
+        A link, a product name, or a plain description of the job it has to do. All three work — we figure out
+        which one you gave us.
+      </p>
+      <div
+        className="grid text-left"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "var(--space-3)" }}
+      >
+        {modes.map((m) => (
+          <div key={m.label} className="bg-neutral-100 border border-divider rounded-md" style={{ padding: "var(--space-4)" }}>
+            <p style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>{m.label}</p>
+            <p className="text-neutral-700" style={{ fontSize: "12.5px", margin: "var(--space-1) 0 0" }}>
+              {m.sub}
             </p>
           </div>
         ))}
@@ -85,17 +59,105 @@ function EmptyState() {
   );
 }
 
+function LoadingState() {
+  return (
+    <div className="animate-soft-in">
+      <div className="flex flex-col items-center" style={{ gap: "var(--space-3)", padding: "var(--space-6) 0 var(--space-8)" }}>
+        <div className="flex flex-col items-center justify-end" style={{ height: 92 }}>
+          <div style={{ width: 46, height: 54, transformOrigin: "50% 50%", animation: "hopSpin 1.15s linear infinite" }}>
+            <HoneyDrop size={46} />
+          </div>
+          <div
+            className="rounded-full bg-accent-800"
+            style={{ width: 34, height: 5, marginTop: "var(--space-1)", animation: "hopShadow 1.15s linear infinite" }}
+          />
+        </div>
+        <span className="text-accent-700 font-semibold" style={{ fontSize: "14.5px" }}>
+          Searching retailers. A new product can take up to a minute.
+        </span>
+      </div>
+      <div className="flex flex-col" style={{ gap: "var(--space-3)" }}>
+        {[0, 0.15, 0.3].map((delay, i) => (
+          <div
+            key={i}
+            className="rounded-lg"
+            style={{
+              height: 104,
+              opacity: 1 - i * 0.25,
+              background: "linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%)",
+              backgroundSize: "200% 100%",
+              animation: `sweep 1.5s ease ${delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div
+      className="text-center bg-neutral-100 border border-divider rounded-lg shadow-sm animate-rise-in mx-auto"
+      style={{ maxWidth: "520px", margin: "clamp(40px, 8vh, 80px) auto", padding: "var(--space-8)" }}
+    >
+      <span
+        className="inline-flex items-center justify-center rounded-full bg-accent-200 text-accent-800"
+        style={{ width: 46, height: 46 }}
+      >
+        <AlertCircle size={22} strokeWidth={2.75} />
+      </span>
+      <h2 style={{ fontSize: "25px", lineHeight: 1.2, margin: "var(--space-4) 0 var(--space-2)" }}>
+        We couldn't reach the catalogue.
+      </h2>
+      <p className="text-neutral-800" style={{ margin: "0 0 var(--space-2)" }}>
+        Nothing's wrong with your search — the product feed timed out. Try again in a moment.
+      </p>
+      <p
+        className="text-neutral-600"
+        style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "12.5px", margin: "0 0 var(--space-6)" }}
+      >
+        {message}
+      </p>
+      <button
+        onClick={onRetry}
+        className="rounded-full bg-accent text-bg font-heading hover:bg-accent-600 transition-colors cursor-pointer"
+        style={{ padding: "var(--space-3) var(--space-6)", fontSize: "14px" }}
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
+  const [screen, setScreen] = useState<Screen>("landing");
   const [appState, setAppState] = useState<AppState>("idle");
+  const [view, setView] = useState<View>("ranked");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [error, setError] = useState("");
   const [compareProduct, setCompareProduct] = useState<Product | null>(null);
 
-  async function handleSearch(query: string) {
+  function goTo(next: Screen) {
+    // The overlay surviving a screen change was a real bug in the design
+    // prototype — clear it on every navigation.
+    setCompareProduct(null);
+    setScreen(next);
+  }
+
+  async function runSearch(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) {
+      setScreen("app");
+      setAppState("idle");
+      return;
+    }
+    setScreen("app");
     setAppState("loading");
-    setResults(null);
     try {
-      setResults(await searchProducts({ query }));
+      const res = await searchProducts({ query: trimmed });
+      setResults(res);
       setAppState("results");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
@@ -103,96 +165,223 @@ export default function App() {
     }
   }
 
-  // No resolved target means the backend read the query as a description, so
-  // there is nothing to anchor the comparison against — echo the query instead.
-  const describedOnly = results !== null && results.targetProduct === null;
+  const allProducts = results ? flattenGroups(results.groups) : [];
+  const best = allProducts[0];
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #fff8e1 0%, #ffe082 55%, #ffcc02 100%)" }}>
-      {/* Header */}
-      <header
-        className="sticky top-0 z-30 px-4 py-3"
-        style={{
-          background: "rgba(255,248,225,0.8)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(245,166,35,0.15)",
-        }}
-      >
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <div className="animate-drop-bounce flex-shrink-0">
-            <HoneyDrop size={36} />
-          </div>
-          <div className="flex-shrink-0">
-            <span
-              className="text-xl font-extrabold tracking-tight"
-              style={{ color: "#e87d00", letterSpacing: "-0.02em" }}
+    <>
+      {screen === "landing" && (
+        <LandingPage
+          query={query}
+          onQueryChange={setQuery}
+          onSearch={runSearch}
+          onGoSignin={() => goTo("signin")}
+          onGoExtension={() => goTo("extension")}
+        />
+      )}
+
+      {screen === "app" && (
+        <div>
+          <header className="sticky top-0 z-20 bg-bg border-b border-divider" style={{ backdropFilter: "blur(14px)" }}>
+            <div
+              className="mx-auto flex items-center flex-wrap"
+              style={{ maxWidth: "1240px", padding: "12px clamp(16px, 3vw, 36px)", gap: "var(--space-4)" }}
             >
-              nectarly
-            </span>
-            <span className="text-xs ml-2 font-medium" style={{ color: "#a16207" }}>
-              find sweeter deals
-            </span>
-          </div>
-        </div>
-      </header>
+              <button
+                onClick={() => goTo("landing")}
+                className="flex items-center bg-transparent border-none cursor-pointer"
+                style={{ gap: "var(--space-2)", padding: 0 }}
+              >
+                <div style={{ width: 24, height: 28 }} className="flex-shrink-0">
+                  <HoneyDrop size={24} />
+                </div>
+                <span style={{ fontFamily: "var(--font-heading)", fontSize: "19px", color: "var(--color-accent-700)" }}>
+                  nectarly
+                </span>
+              </button>
+              <SearchBar
+                variant="compact"
+                value={query}
+                onChange={setQuery}
+                loading={appState === "loading"}
+                onSearch={runSearch}
+              />
+              <button
+                onClick={() => goTo("signin")}
+                className="inline-flex items-center rounded-full border border-divider bg-transparent font-semibold text-text hover:bg-neutral-200 transition-colors cursor-pointer flex-shrink-0"
+                style={{ gap: "var(--space-2)", padding: "var(--space-1) var(--space-2) var(--space-1) var(--space-3)", fontSize: "13.5px" }}
+              >
+                Sign in
+                <span
+                  className="rounded-full bg-accent-200 text-accent-800 inline-flex items-center justify-center"
+                  style={{ width: 26, height: 26 }}
+                >
+                  <User size={14} strokeWidth={2.75} />
+                </span>
+              </button>
+            </div>
+          </header>
 
-      {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
-        <section className="flex flex-col gap-3">
-          <SearchBar loading={appState === "loading"} onSearch={handleSearch} />
-        </section>
+          <main className="mx-auto" style={{ maxWidth: "1240px", padding: "clamp(20px, 3vw, 36px) clamp(16px, 3vw, 36px) 80px" }}>
+            {appState === "idle" && <EmptyState />}
+            {appState === "loading" && <LoadingState />}
+            {appState === "error" && <ErrorState message={error} onRetry={() => runSearch(query)} />}
 
-        {appState === "loading" && <LoadingSkeleton />}
+            {appState === "results" && results && (
+              <div
+                className="flex flex-wrap items-start animate-soft-in"
+                style={{ gap: "clamp(20px, 2.6vw, 34px)" }}
+              >
+                <div className="flex flex-col" style={{ flex: "1 1 460px", minWidth: 0, gap: "var(--space-6)" }}>
+                  {results.targetProduct && <TargetProductCard product={results.targetProduct} />}
 
-        {appState === "idle" && <EmptyState />}
+                  <div className="flex items-center flex-wrap" style={{ gap: "var(--space-3)" }}>
+                    <h2
+                      className="mr-auto"
+                      style={{ fontSize: "clamp(22px, 2.4vw, 27px)", lineHeight: 1.15, margin: 0 }}
+                    >
+                      {allProducts.length} alternatives worth your attention
+                    </h2>
+                    <div className="flex bg-surface border border-divider rounded-full" style={{ gap: "var(--space-1)", padding: "var(--space-1)" }}>
+                      <button
+                        onClick={() => setView("ranked")}
+                        className={`rounded-full font-bold cursor-pointer border-none ${view === "ranked" ? "bg-neutral-100 text-text shadow-sm" : "bg-transparent text-neutral-700"}`}
+                        style={{ padding: "var(--space-1) var(--space-3)", fontSize: "13px" }}
+                      >
+                        Ranked
+                      </button>
+                      <button
+                        onClick={() => setView("table")}
+                        className={`rounded-full font-bold cursor-pointer border-none ${view === "table" ? "bg-neutral-100 text-text shadow-sm" : "bg-transparent text-neutral-700"}`}
+                        style={{ padding: "var(--space-1) var(--space-3)", fontSize: "13px" }}
+                      >
+                        Side by side
+                      </button>
+                    </div>
+                  </div>
 
-        {appState === "error" && <ErrorPanel message={error} />}
+                  {view === "ranked" ? (
+                    <AlternativeGroups
+                      groups={results.groups}
+                      targetPrice={results.targetProduct?.price ?? null}
+                      onCompare={setCompareProduct}
+                    />
+                  ) : (
+                    <ComparisonTable target={results.targetProduct} products={allProducts} />
+                  )}
+                </div>
 
-        {appState === "results" && results && (
-          <section className="flex flex-col gap-6">
-            {results.targetProduct && <TargetProductCard product={results.targetProduct} />}
-
-            {describedOnly && (
-              <div className="animate-fade-in-up text-center py-2">
-                <p className="text-sm font-medium" style={{ color: "#7c4a00" }}>
-                  Showing best matches for: <em>"{results.query}"</em>
-                </p>
+                {best && (
+                  <aside
+                    className="flex flex-col sticky"
+                    style={{ flex: "1 1 285px", minWidth: 0, maxWidth: "360px", gap: "var(--space-4)", top: 88 }}
+                  >
+                    <div className="bg-accent-2-100 border border-accent-2-300 rounded-lg" style={{ padding: "var(--space-6)" }}>
+                      <p
+                        className="uppercase text-accent-2-700 font-bold"
+                        style={{ fontSize: "11px", letterSpacing: "0.08em", margin: "0 0 var(--space-1)" }}
+                      >
+                        Best equivalent
+                      </p>
+                      <p className="text-accent-2-700" style={{ fontFamily: "var(--font-heading)", fontSize: "clamp(36px, 4vw, 44px)", lineHeight: 1, margin: 0 }}>
+                        {results.targetProduct
+                          ? `$${(results.targetProduct.price - best.price).toFixed(2)}`
+                          : `$${best.price.toFixed(2)}`}
+                      </p>
+                      <p className="text-accent-2-700" style={{ fontSize: "14px", margin: "var(--space-2) 0 0" }}>
+                        kept, at {Math.round(best.matchScore)}% of the product you asked for
+                      </p>
+                      <div className="border-accent-2-300" style={{ marginTop: "var(--space-4)", paddingTop: "var(--space-3)", borderTopWidth: 1, borderTopStyle: "solid" }}>
+                        <p style={{ fontSize: "13.5px", fontWeight: 700, lineHeight: 1.35, margin: 0 }}>
+                          {best.name}
+                        </p>
+                        <p className="text-accent-2-700" style={{ fontSize: "12.5px", margin: "var(--space-1) 0 0" }}>
+                          {[best.brand, best.retailer].filter(Boolean).join(" · ")} ·{" "}
+                          {best.rating.toFixed(1)}★ ({best.reviewCount.toLocaleString()})
+                        </p>
+                      </div>
+                    </div>
+                  </aside>
+                )}
               </div>
             )}
+          </main>
+        </div>
+      )}
 
-            <div
-              className="animate-fade-in-up flex items-center justify-between"
-              style={{ animationDelay: "0.1s" }}
+      {screen === "signin" && (
+        <SignInPage onGoLanding={() => goTo("landing")} onSignedIn={() => goTo("app")} />
+      )}
+
+      {screen === "extension" && (
+        <div
+          className="bg-neutral-200 flex flex-col items-center"
+          style={{ minHeight: "100vh", padding: "clamp(16px, 3vw, 40px)", gap: "var(--space-4)" }}
+        >
+          <div className="w-full flex items-center flex-wrap" style={{ maxWidth: "1180px", gap: "var(--space-3)" }}>
+            <button
+              onClick={() => goTo("landing")}
+              className="inline-flex items-center rounded-full border border-divider bg-neutral-100 hover:bg-surface transition-colors font-heading text-text cursor-pointer"
+              style={{ gap: "var(--space-2)", padding: "var(--space-2) var(--space-4)", fontSize: "13.5px" }}
             >
-              <h2 className="text-base font-bold" style={{ color: "#7c4a00" }}>
-                {describedOnly ? "Best Alternatives Found" : "Cheaper Alternatives"}
-              </h2>
+              <ArrowLeft size={14} strokeWidth={2.75} />
+              Back
+            </button>
+            <p className="text-neutral-700" style={{ fontSize: "14px", margin: 0 }}>
+              The extension panel, in place on a retailer's product page.
+            </p>
+          </div>
+
+          <div
+            className="w-full bg-neutral-100 border border-divider rounded-lg shadow-lg overflow-hidden flex flex-col"
+            style={{ maxWidth: "1180px", flex: "1 1 0%" }}
+          >
+            <div className="flex items-center bg-surface border-b border-divider" style={{ gap: "var(--space-2)", padding: "var(--space-3) var(--space-4)" }}>
+              <span className="rounded-full bg-neutral-400" style={{ width: 11, height: 11 }} />
+              <span className="rounded-full bg-neutral-400" style={{ width: 11, height: 11 }} />
+              <span className="rounded-full bg-neutral-400" style={{ width: 11, height: 11 }} />
               <span
-                className="text-xs font-mono px-2.5 py-1 rounded-xl"
-                style={{ background: "rgba(245,166,35,0.15)", color: "#b45309" }}
+                className="rounded-full bg-neutral-100 flex items-center text-neutral-600 overflow-hidden whitespace-nowrap"
+                style={{ marginLeft: "var(--space-2)", flex: "1 1 0%", maxWidth: "460px", height: 26, padding: "0 var(--space-3)", fontSize: "12px" }}
               >
-                {results.tiers.tier1.length + results.tiers.tier2.length + results.tiers.tier3.length} results
+                <Search size={12} strokeWidth={2.75} className="flex-shrink-0" style={{ marginRight: "var(--space-1)" }} />
+                {results?.query || "retailer.com/product-page"}
               </span>
             </div>
 
-            <AlternativeTierList tiers={results.tiers} onCompare={setCompareProduct} />
-          </section>
-        )}
-      </main>
+            <div
+              className="flex flex-wrap items-start"
+              style={{ flex: "1 1 0%", gap: "clamp(20px, 3vw, 44px)", padding: "clamp(20px, 3vw, 44px)" }}
+            >
+              <div style={{ flex: "1 1 300px", minWidth: 0, opacity: 0.5 }}>
+                <div
+                  className="w-full rounded-lg border border-divider flex items-center justify-center text-neutral-600"
+                  style={{
+                    aspectRatio: "4 / 3",
+                    background: "repeating-linear-gradient(45deg, var(--color-neutral-200) 0 8px, var(--color-neutral-100) 8px 16px)",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: "12px",
+                  }}
+                >
+                  retailer product photo
+                </div>
+                <div className="rounded-full bg-neutral-200" style={{ height: 26, width: "70%", marginTop: "var(--space-4)" }} />
+                <div className="rounded-full bg-neutral-200" style={{ height: 16, width: "45%", marginTop: "var(--space-3)" }} />
+                <div className="rounded-full bg-neutral-300" style={{ height: 44, width: "180px", marginTop: "var(--space-6)" }} />
+              </div>
 
-      {/* Sits outside <main> but inside the gradient root, so it never competes
-          with SpecBreakdownModal's layer below. */}
-      <footer className="max-w-2xl mx-auto px-4 pb-8 text-center">
-        <a
-          href={FEEDBACK_FORM_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="glass-card inline-block rounded-2xl px-4 py-2 text-xs font-semibold transition-all duration-200 hover:opacity-80"
-          style={{ color: "#7c4a00" }}
-        >
-          Send feedback
-        </a>
-      </footer>
+              <div style={{ flex: "0 1 386px", width: "100%", maxWidth: "386px" }}>
+                <ExtensionPanel
+                  targetProduct={results?.targetProduct ?? null}
+                  products={allProducts}
+                  onClose={() => goTo("landing")}
+                  onOpenComparison={() => goTo("app")}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {compareProduct && (
         <SpecBreakdownModal
@@ -201,6 +390,6 @@ export default function App() {
           onClose={() => setCompareProduct(null)}
         />
       )}
-    </div>
+    </>
   );
 }

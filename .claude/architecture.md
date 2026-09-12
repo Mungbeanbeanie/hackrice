@@ -11,6 +11,7 @@ backend/
     config.py
     models.py
     cache.py
+    analytics.py
     ingestion/
       target_resolver.py
       serpapi_client.py
@@ -25,10 +26,12 @@ backend/
     routes/
       search.py
       compare.py
+      admin.py
   tests/
     test_smoke.py
     test_scoring.py
     test_pipeline.py
+    test_admin.py
 
 frontend/
   src/
@@ -41,13 +44,24 @@ frontend/
       SearchBar.tsx
       HoneyDrop.tsx
       TargetProductCard.tsx
-      AlternativeTierList.tsx
+      ResultCard.tsx
+      AlternativeGroups.tsx
+      ComparisonTable.tsx
       SpecBreakdownModal.tsx
+      LandingPage.tsx
+      SignInPage.tsx
+      ExtensionPanel.tsx
+      TermsLink.tsx
+      TermsLink.test.tsx
 
 deploy/
   docker-compose.yml
   README.md
 ```
+
+`frontend/design_handoff_nectarly_production/` (not shown above) is the Organic
+design reference bundle — HTML prototypes + token sheet, not app code. Excluded
+from lint/typecheck/build; see `plan.md` Phase 10.
 
 ## Component Ownership
 
@@ -58,11 +72,14 @@ deploy/
 | Feature Engineering | `features/embeddings.py`, `features/attribute_matrix.py`, `features/svd.py`, `features/standardize.py` | Turning raw ingested data into the latent-space similarity score (Layers 1–2 of `overview.md` §3). |
 | Scoring | `scoring/quality.py`, `scoring/value.py` | Bayesian quality ($Q$) and value optimization ($V$) computation, tier assignment (Layers 3–4). |
 | API | `routes/search.py`, `routes/compare.py`, `main.py` | HTTP surface; orchestrates ingestion → features → scoring per request; wires routers into the app. |
-| Frontend data | `api/client.ts` | Typed fetch layer against the API surface above. Sends the raw query only — the backend infers the search mode. |
-| Frontend input | `components/SearchBar.tsx` | Single query/URL entry field + submit. |
-| Frontend output | `components/TargetProductCard.tsx`, `components/AlternativeTierList.tsx`, `components/SpecBreakdownModal.tsx` | Rendering the resolved target (when present) and tiered results. |
-| Frontend styling | `index.css`, `components/HoneyDrop.tsx` | Tailwind v4 entrypoint, honey theme tokens, shared animation/card classes, and the logo mark. No internal deps. |
-| App composition | `App.tsx`, `main.tsx` | Wires input + output components around `api/client.ts`; owns the idle/loading/results/error states. |
+| Analytics & Admin | `analytics.py`, `routes/admin.py` | Logging every search (signed-in or anonymous) to the `searches` table, and the HTTP-Basic `/api/admin` dashboard that reads it back. `analytics.py` holds the only SQL for this feature; `routes/admin.py` holds the only HTML. See `plan.md` Phase 13. |
+| Frontend data | `api/client.ts` | Typed fetch layer against the API surface above. Sends the raw query only — the backend infers the search mode. Also client-side stubs `group`/`verdict`/`rationale`/`short` over the current (pre-Phase-11) backend response — see `plan.md` Phase 10/11. |
+| Frontend input | `components/SearchBar.tsx` | Single query/URL entry field + submit; `hero`/`compact` variants. |
+| Frontend output | `components/TargetProductCard.tsx`, `components/ResultCard.tsx`, `components/AlternativeGroups.tsx`, `components/ComparisonTable.tsx`, `components/SpecBreakdownModal.tsx` | Rendering the resolved target (when present) and grouped results, ranked or side-by-side. `ResultCard.tsx` renders one candidate; `AlternativeGroups.tsx` orders the three groups and lays out `ResultCard`s within each. |
+| Frontend screens | `components/LandingPage.tsx`, `components/SignInPage.tsx`, `components/ExtensionPanel.tsx` | Marketing/account surfaces composed directly by `App.tsx`'s screen state machine (`landing`/`signin`/`extension`), not nested inside the results flow. |
+| Frontend legal | `components/TermsLink.tsx` | Terms copy + the native `<dialog>` that shows it, and the inline "Terms" button that opens it. Shared leaf, no props, no internal deps — consumed by `SignInPage.tsx` (inside the required consent checkbox's label) and `LandingPage.tsx` (footer). See `plan.md` Phase 12. |
+| Frontend styling | `index.css`, `components/HoneyDrop.tsx` | Tailwind v4 entrypoint, Organic design-system tokens (color ramps, radius, shadow, fonts), shared keyframes, and the logo mark. No internal deps. |
+| App composition | `App.tsx`, `main.tsx` | Wires every screen/output component around `api/client.ts`; owns the `screen` × `appState` × `view` state machine. |
 | Deploy | `docker-compose.yml`, `README.md` | Runs built backend/frontend images; no dependency on internal file structure. |
 
 ## Dependency Graph
@@ -90,10 +107,11 @@ main.py  (wires routers into the FastAPI app)
 frontend/src/api/client.ts
            │
            ▼
-                          SearchBar.tsx ─┐
-                                          ▼
-TargetProductCard.tsx ──────────────▶ App.tsx ◀── AlternativeTierList.tsx ◀── SpecBreakdownModal.tsx
-                                          ▲
+ResultCard.tsx ──▶ AlternativeGroups.tsx ─┐
+                                            │
+SearchBar.tsx, TargetProductCard.tsx,      ▼
+ComparisonTable.tsx, SpecBreakdownModal.tsx ──▶ App.tsx ◀── LandingPage.tsx, SignInPage.tsx, ExtensionPanel.tsx
+                                            ▲
                        index.css, HoneyDrop.tsx (leaf, no deps)
 ```
 
@@ -102,3 +120,8 @@ Notes:
 * `svd.py` and `standardize.py` both consume `attribute_matrix.py`'s output independently — `svd.py` for Layer 1 similarity, `standardize.py` for Layer 2 scaling — and their outputs both feed `value.py` alongside `quality.py`.
 * `TargetProductCard.tsx` is conditionally omitted at the `App.tsx` composition level, not deleted from the tree, when the response carries no `targetProduct` — which is exactly the description-mode case (see `plan.md` Phase 6).
 * There is no `SearchModeSelector.tsx`: the UI is a single search box and the backend infers url / exact_product / description from the raw string, so `SearchQuery.mode` is backend-derived rather than client-supplied.
+* `analytics.py` is called by `routes/search.py` but is not in its dependency chain above: `record_search` swallows every exception, so a failure there cannot affect the response. It reads the caller's account via `accounts/session.py`, which makes it the one non-`routes/` module that takes a FastAPI `Request`.
+* `routes/admin.py` is server-rendered HTML, deliberately outside the React app — it depends on nothing in `frontend/` and needs no Caddy or Vite change, since `/api/*` already proxies to the backend in both prod and dev.
+* `TermsLink.tsx` is a shared leaf like `HoneyDrop.tsx`, rendered by `SignInPage.tsx` and `LandingPage.tsx` and owning its own dialog state — `App.tsx` doesn't know it exists, unlike `SpecBreakdownModal.tsx`, whose open/close state `App.tsx` holds.
+* `HoneyDrop.tsx` is a shared leaf with more consumers than the diagram shows arrows for: `App.tsx` (header, empty state, loading animation), `LandingPage.tsx`, `SignInPage.tsx`, and `ExtensionPanel.tsx` all render it directly.
+* `AlternativeTierList.tsx` (Phase 6) was deleted in Phase 10 — replaced by `ResultCard.tsx` (one candidate) + `AlternativeGroups.tsx` (group ordering/layout), matching the Organic design handoff's `same_spec`/`same_job`/`clears_floor` groups. See `plan.md` Phase 10/11 for the backend data-contract catch-up this still depends on.

@@ -35,10 +35,10 @@ class Product(BaseModel):
     specs: list[SpecAttribute]
 
 
-class Tier(StrEnum):
-    TIER_1 = "tier_1"
-    TIER_2 = "tier_2"
-    TIER_3 = "tier_3"
+class Group(StrEnum):
+    SAME_SPEC = "same_spec"
+    SAME_JOB = "same_job"
+    CLEARS_FLOOR = "clears_floor"
 
 
 class ComparisonResult(BaseModel):
@@ -46,7 +46,7 @@ class ComparisonResult(BaseModel):
     similarity: float
     quality_score: float
     value_score: float
-    tier: Tier
+    group: Group
     savings_amount: float | None
     savings_percent: float | None
 

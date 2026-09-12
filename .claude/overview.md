@@ -127,6 +127,7 @@ $$V = \frac{Q \cdot \text{Similarity}(\mathbf{u}, \mathbf{v})}{\text{Cost}}$$
 
 * If an alternative product provides $95\%$ functional similarity and equivalent Bayesian quality at $50\%$ of the price, its $V$-score doubles relative to the target item.
 * Low-quality generics or cheap items that fail spec similarity criteria suffer heavy penalties in $Q$ or $\text{Similarity}(\mathbf{u}, \mathbf{v})$, filtering out low-utility noise.
+* As of the Organic design pass (Section 5, `plan.md` Phase 10), $Q$/$V$/$\cos\theta$ are computed here as before but are **no longer shown in the UI** — only `rating`, `reviewCount`, and a plain `matchScore` percentage reach the client, alongside a human-readable `rationale` sentence per candidate.
 
 ---
 
@@ -169,53 +170,78 @@ $$V = \frac{Q \cdot \text{Similarity}(\mathbf{u}, \mathbf{v})}{\text{Cost}}$$
 
 ## 5. Web Application UI/UX Design Breakdown
 
-The web application layout centers on immediate visual clarity, contrasting the targeted brand item directly against optimized financial alternatives.
+As of the Organic design system pass (`plan.md` Phase 10), the product spans
+five surfaces — a marketing landing page, the search + results flow below, a
+spec comparison overlay, sign-in, and a browser-extension panel — rather than
+the single results screen this section originally described. Full visual spec
+(exact colors, spacing, copy, interaction states) lives in
+`frontend/design_handoff_nectarly_production/README.md`; this section stays at
+the conceptual level and does not duplicate it.
+
+Two things changed from the original design that are **not** purely cosmetic:
+
+1. **Tiers are now presented as three named equivalence groups** — the
+   underlying ranking logic is unchanged (Section 3.4), only relabeled for the
+   UI: `same_spec` (was Tier 1), `same_job` (was Tier 2), `clears_floor` (was
+   Tier 3). Groups are ordered by equivalence, and products are ranked by $V$
+   *within* a group — so the single cheapest item in the whole result set does
+   not necessarily lead.
+2. **Raw scoring math is no longer shown in the UI.** No $\cos\theta$, no
+   Bayesian $Q$, no value multiplier $V$ on screen — the backend still
+   computes all three to drive ordering and the quality floor (Section 3.4),
+   but the UI surfaces only `rating`, `reviewCount`, a plain `matchScore`
+   percentage, and a human-readable `rationale` sentence per candidate.
+
+**Status:** these two changes are implemented as a client-side stub only
+(`frontend/src/api/client.ts`'s `adaptSearchResponse`) — the backend still
+returns the original `tiers`/no-`rationale`/no-`verdict` shape. See `plan.md`
+Phase 11 for the backend catch-up that replaces the stub.
+
+The search + results surface:
 
 ```
 +-----------------------------------------------------------------------------------+
 |  [ Search Bar: Paste Product Link or Type Search Query... ]        [ Search ]     |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
-|  TARGET REFERENCE PRODUCT                                                         |
+|  YOUR REFERENCE PRODUCT                                                          |
 |  [Image]  Brand-Name Ergonomic Pillow - $120.00                                   |
 |           Specs: Memory Foam, Cooling Gel, Contour Design | Rating: 4.5 (1,200)    |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
-|  FINANCIAL ALTERNATIVES & SPEC-MATCHED RANKINGS                                   |
+|  {n} ALTERNATIVES WORTH YOUR ATTENTION                       [Ranked | Side-by-side]|
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
-|  TIER 1: DIRECT FACTORY / GENERIC EQUIVALENT (Highest Value Score)                |
-|  [Image]  Unbranded Contour Memory Foam Pillow                                        |
-|           Price: $42.00 (Savings: $78.00 / 65%)                                   |
-|           Spec Match: 96%  |  Quality Score (Q): 4.4/5.0  |  Value Score (V): High  |
-|           [ Compare Spec Breakdown ]                       [ Direct Purchase Link ]|
+|  SAME SPEC, NO LOGO — matches the original's materials and construction           |
+|  [Image]  Unbranded Contour Memory Foam Pillow                                    |
+|           Price: $42.00 (saves $78.00)            Match: 96%  |  4.4★ (1,200)      |
+|           [ Compare ]                                              [ Buy ]        |
 |                                                                                   |
 |-----------------------------------------------------------------------------------|
 |                                                                                   |
-|  TIER 2: CROSS-CATEGORY FUNCTIONAL ALTERNATIVE                                    |
+|  DIFFERENT BUILD, SAME JOB — another way of reaching the same outcome            |
 |  [Image]  High-Density Natural Latex Support Pillow                               |
-|           Price: $55.00 (Savings: $65.00 / 54%)                                   |
-|           Spec Match: 88% (Latex vs. Memory Foam - Equal Ergonomic Support)       |
-|           Quality Score (Q): 4.6/5.0                      |  Value Score (V): Med-High|
-|           [ Compare Spec Breakdown ]                       [ Direct Purchase Link ]|
+|           Price: $55.00 (saves $65.00)            Match: 88%  |  4.6★ (741)        |
+|           [ Compare ]                                              [ Buy ]        |
 |                                                                                   |
 |-----------------------------------------------------------------------------------|
 |                                                                                   |
-|  TIER 3: BUDGET BENCHMARK EQUIVALENT                                              |
+|  CHEAPEST THAT CLEARS QUALITY — lowest price still above the quality floor         |
 |  [Image]  Standard High-Density Foam Pillow                                       |
-|           Price: $22.00 (Savings: $98.00 / 81%)                                   |
-|           Spec Match: 74%  |  Quality Score (Q): 4.1/5.0  |  Value Score (V): Moderate|
-|           [ Compare Spec Breakdown ]                       [ Direct Purchase Link ]|
+|           Price: $22.00 (saves $98.00)            Match: 74%  |  4.1★ (41,230)     |
+|           [ Compare ]                                              [ Buy ]        |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
 ```
 
 ### 5.1 Component Breakdown
-* **Search Mode Selector:** Lets the user choose URL, Exact Product, or Description mode (Section 1.3) before submitting a query; the input field's placeholder/validation adapts accordingly (URL format vs. free text).
-* **Target Baseline Header:** Displays the resolved target product to serve as the reference anchor for price, specs, and rating benchmarks. **Rendered only in URL and Exact Product modes** — omitted entirely in Description Mode, since no single target product is resolved (savings %/spec-match figures for candidates are instead shown relative to the query's implied budget/functional expectations where available, or omitted).
-* **Tier 1 (Direct Factory/Generic Equivalent):** Displays products with matching materials and structural specifications produced without brand markups.
-* **Tier 2 (Cross-Category Functional Alternative):** Displays products from different material domains that achieve equivalent functional utility mapped through the latent SVD matrix layer.
-* **Tier 3 (Budget Benchmark):** Displays the lowest absolute price point that successfully passes the Bayesian Quality ($Q$) safety threshold, catering to maximum cost reduction.
+* **Search Bar:** One input for all three modes (Section 1.3) — no mode selector. The backend infers url / exact_product / description from the raw string; any non-empty string is valid input.
+* **Reference Product Card:** Displays the resolved target product to serve as the reference anchor for price, specs, and rating benchmarks. **Rendered only in URL and Exact Product modes** — omitted entirely in Description Mode, since no single target product is resolved.
+* **Same spec, no logo** (was Tier 1): Products with matching materials and structural specifications produced without brand markups.
+* **Different build, same job** (was Tier 2): Products from different material domains that achieve equivalent functional utility mapped through the latent SVD matrix layer.
+* **Cheapest that clears quality** (was Tier 3): The lowest absolute price point that successfully passes the Bayesian Quality ($Q$) safety threshold, catering to maximum cost reduction.
+* **Comparison overlay:** Per-candidate spec breakdown against the reference product, with a six-value verdict chip per spec (`same`/`better`/`equivalent`/`close`/`different`/`lower`) and a one-to-two sentence `rationale`.
+* **Landing, sign-in, and extension-panel surfaces:** Marketing/account/browser-extension surfaces outside the search+results flow — see `plan.md` Phase 10.
 
 ---
 
@@ -223,10 +249,17 @@ The web application layout centers on immediate visual clarity, contrasting the 
 
 ### 6.1 Account Creation
 * Email-based accounts — user signs up/logs in with an email address (mechanism: magic-link or verification-code email, no password storage for MVP — avoids password hashing/reset flows; revisit if a password flow is explicitly wanted).
-* Backed by the Vultr Managed Postgres cluster referenced in `deploy/README.md` §1 (provisioned but currently unused — `DATABASE_URL` exists in `config.py`/`main.py` but nothing reads it yet). This feature is what activates that connection.
+* Backed by the Vultr Managed Postgres cluster referenced in `deploy/README.md` §1. `db.py` bootstraps the schema on startup and `accounts/store.py` reads/writes it, so `DATABASE_URL` is live rather than the dead config it originally was.
 * Core account fields: `id`, `email` (unique), `created_at`.
+* Sign-up is gated on a required terms checkbox disclosing that we store the user's email and their searches (`plan.md` Phase 12). The gate is **UI-only** — the browser's native `required` validation blocks the form, but acceptance is never sent to or stored by the backend, so there is no per-account consent record to audit. Add `accepted_terms_at` if that ever needs proving.
 
 ### 6.2 Shopping History (exploratory — not yet committed)
 * Tentative: persist each search (`SearchQuery` + resolved target + returned tiers) against the logged-in user's account, so a user can revisit past comparisons.
-* Open questions to resolve before implementation: what "history" actually shows (raw past searches vs. saved/starred alternatives), retention period, whether it drives future personalization (e.g. weighting $V$ by past category preferences) or is purely a log.
+* Partially superseded by §6.3: the raw searches of signed-in users **are** now persisted and account-linked. What remains undecided is the user-facing half — whether history surfaces as raw past searches or saved/starred alternatives, its retention period, and whether it drives personalization (e.g. weighting $V$ by past category preferences). §6.3 stores neither the resolved target nor the returned tiers, so a "revisit this comparison" feature still needs a schema change.
 * Not scoped into `plan.md` yet — pending a decision on the above before it becomes checklist items.
+
+### 6.3 Search Log & Admin Dashboard (implemented — `plan.md` Phase 13)
+* Every `/api/search` call is logged to a `searches` table (`query`, `mode`, `result_count`, `created_at`, nullable `account_id`). Search requires no sign-in, so most rows are anonymous — that is deliberate, not a gap.
+* Recorded by `analytics.py`, which **never raises**: a broken or unreachable database degrades tracking, never a user's search.
+* `GET /api/admin` renders signups and search activity as server-rendered HTML behind HTTP Basic (`ADMIN_PASSWORD`), and 503s while that is unset. Deliberately not part of the React app — no new frontend surface, no routing change.
+* This is the **log** half of §6.2. It is internal-facing only: nothing about it is exposed to the user whose searches it records.

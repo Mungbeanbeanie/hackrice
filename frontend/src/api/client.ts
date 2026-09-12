@@ -1,5 +1,4 @@
-// Mirrors the response models in backend/app/routes/search.py. Keep the two in
-// step: the backend serializes these field names directly, with no adapter.
+// Mirrors the response models in backend/app/routes/search.py.
 //
 // One search box: the backend infers url / exact_product / description from the
 // raw string, so no mode is sent.
@@ -7,14 +6,21 @@ export interface SearchRequest {
   query: string;
 }
 
+export type Verdict = "same" | "better" | "close" | "different" | "lower";
+export type Group = "same_spec" | "same_job" | "clears_floor";
+
 export interface ProductSpec {
   key: string;
   value: string;
+  // null when the target carries no such spec to compare against — and for
+  // every spec in description mode, where no target is resolved at all.
+  verdict: Verdict | null;
 }
 
 export interface Product {
   id: string;
   name: string;
+  short: string;
   brand: string;
   price: number;
   originalPrice?: number;
@@ -30,8 +36,9 @@ export interface Product {
   // the target. Never negative.
   savings?: number;
   savingsPercent?: number;
-  tier: 1 | 2 | 3;
-  badge?: string;
+  // Absent on the target product: it is the reference, not a candidate being
+  // argued for.
+  rationale?: string;
 }
 
 export interface SearchResponse {
@@ -39,11 +46,7 @@ export interface SearchResponse {
   // null when the backend read the query as a description rather than a
   // specific product — there is no single target to anchor against.
   targetProduct: Product | null;
-  tiers: {
-    tier1: Product[];
-    tier2: Product[];
-    tier3: Product[];
-  };
+  groups: Record<Group, Product[]>;
 }
 
 const BASE_URL = "/api";
@@ -79,4 +82,24 @@ export async function searchProducts(req: SearchRequest): Promise<SearchResponse
     }
     throw e;
   }
+}
+
+export interface Account {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
+export async function requestSignInCode(email: string): Promise<void> {
+  await apiFetch<{ status: string }>("/auth/request-code", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifySignInCode(email: string, code: string): Promise<Account> {
+  return apiFetch<Account>("/auth/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  });
 }

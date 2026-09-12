@@ -118,8 +118,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COUPON_API: ${{ secrets.COUPON_API }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           CACHE_URL: ${{ secrets.CACHE_URL }}
           SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -138,8 +140,8 @@ jobs:
 
           # Config is version-controlled and pushed each deploy, so the server
           # never becomes the only place a setting lives.
-          printf 'IMAGE_TAG=%s\nDATABASE_URL=%s\nSITE_ADDRESS=%s\nSERPAPI_API_KEY=%s\nOPENAI_API_KEY=%s\nRESEND_API_KEY=%s\nSESSION_SECRET=%s\nCACHE_URL=%s\n' \
-            "$IMAGE_TAG" "$DATABASE_URL" "$SITE_ADDRESS" "$SERPAPI_API_KEY" "$OPENAI_API_KEY" "$RESEND_API_KEY" "$SESSION_SECRET" "$CACHE_URL" > .env
+          printf 'IMAGE_TAG=%s\nDATABASE_URL=%s\nSITE_ADDRESS=%s\nSERPAPI_API_KEY=%s\nOPENAI_API_KEY=%s\nCACHE_URL=%s\n' \
+            "$IMAGE_TAG" "$DATABASE_URL" "$SITE_ADDRESS" "$SERPAPI_API_KEY" "$OPENAI_API_KEY" "$CACHE_URL" > .env
 
           ssh "$TARGET" 'mkdir -p /srv/hackrice'
           scp deploy/docker-compose.yml .env "$TARGET:/srv/hackrice/"

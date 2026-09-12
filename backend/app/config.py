@@ -21,13 +21,17 @@ SESSION_TTL_DAYS = int(os.getenv("SESSION_TTL_DAYS", "30"))
 # from ever sending the cookie back over HTTP. Flip once a domain + TLS exist.
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
+# Shared password for the /api/admin dashboard, over HTTP Basic. Unset means
+# the route 503s rather than serving signup/search data to anyone who asks.
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
 # Layer 1 SVD default latent concept count (overview.md §3.1).
 SVD_RANK = int(os.getenv("SVD_RANK", "10"))
 
 # Layer 4 quality safety filter + tier thresholds (overview.md §1.2, §5.1).
 MIN_QUALITY_THRESHOLD = float(os.getenv("MIN_QUALITY_THRESHOLD", "3.5"))
-SPEC_MATCH_TIER1 = float(os.getenv("SPEC_MATCH_TIER1", "0.85"))
-SPEC_MATCH_TIER2 = float(os.getenv("SPEC_MATCH_TIER2", "0.6"))
+SPEC_MATCH_SAME_SPEC = float(os.getenv("SPEC_MATCH_SAME_SPEC", "0.85"))
+SPEC_MATCH_SAME_JOB = float(os.getenv("SPEC_MATCH_SAME_JOB", "0.6"))
 
 # Vultr-managed cache connection string.
 CACHE_URL = os.getenv("CACHE_URL")
@@ -43,3 +47,9 @@ CATEGORY_WEIGHTS: dict[str, float] = {
     "secondary": 1.0,
     "soft": 0.5,
 }
+
+# Phase 9 coupons: CouponAPI.org lookup key. Var name settled as COUPON_API
+# (matches the GitHub secret / .env). Auth scheme beyond this single key
+# (e.g. a second publisher/affiliate credential) isn't confirmed yet; see
+# plan.md Phase 9's blocker note.
+COUPON_API = os.getenv("COUPON_API")

@@ -1,100 +1,102 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap');
 @import 'tailwindcss';
 
 @theme inline {
-  --color-honey-50: #fffbeb;
-  --color-honey-100: #fef3c7;
-  --color-honey-200: #fde68a;
-  --color-honey-300: #fcd34d;
-  --color-honey-400: #fbbf24;
-  --color-honey-500: #f59e0b;
-  --color-honey-600: #d97706;
-  --color-honey-700: #b45309;
-  --color-amber-warm: #ff9800;
-  --color-nectar: #f5a623;
-  --color-pollen: #ffcc02;
-  --color-hive: #7c4a00;
-  --color-wax: #fff8e7;
+  /* roles */
+  --color-bg: #f5ead8;
+  --color-surface: #ebddc5;
+  --color-text: #201e1d;
+  --color-accent: #c67139;
+  --color-accent-2: #7a8a5e;
+  --color-divider: rgba(32, 30, 29, 0.16);
+
+  /* neutral ramp */
+  --color-neutral-100: #f9f4ed;  --color-neutral-200: #eee7db;
+  --color-neutral-300: #dcd3c4;  --color-neutral-400: #c0b6a5;
+  --color-neutral-500: #a19786;  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;  --color-neutral-800: #474238;
+  --color-neutral-900: #2e2b25;
+
+  /* terracotta ramp */
+  --color-accent-100: #fff2eb;   --color-accent-200: #ffe1d0;
+  --color-accent-300: #ffc6a5;   --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;   --color-accent-600: #b2622d;
+  --color-accent-700: #8c491a;   --color-accent-800: #643312;
+  --color-accent-900: #402310;
+
+  /* sage ramp */
+  --color-accent-2-100: #f0fae1; --color-accent-2-200: #e1eecc;
+  --color-accent-2-300: #ccdbb2; --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073; --color-accent-2-600: #728157;
+  --color-accent-2-700: #56633f; --color-accent-2-800: #3d472b;
+  --color-accent-2-900: #272e1b;
+
+  /* type */
+  --font-heading: "Caprasimo", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, sans-serif;
+
+  --radius-sm: 8px; --radius-md: 16px; --radius-lg: 28px;
+
+  --shadow-sm: 0 1px 2px rgba(46, 43, 37, 0.14);
+  --shadow-md: 0 3px 10px rgba(46, 43, 37, 0.16);
+  --shadow-lg: 0 12px 32px rgba(46, 43, 37, 0.22);
 }
 
+/* 1.10x density scale — use these, never raw px. Not a Tailwind spacing
+   namespace (discrete steps, not a multiplier), so referenced via var()
+   rather than generated utilities. */
 :root {
-  --font-sans: 'Outfit', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
-
-* {
-  font-family: var(--font-sans);
+  --space-1: 4.4px;  --space-2: 8.8px;  --space-3: 13.2px;
+  --space-4: 17.6px; --space-6: 26.4px; --space-8: 35.2px;
 }
 
 body {
-  background: linear-gradient(135deg, #fff8e1 0%, #ffe082 40%, #ffcc02 100%);
-  min-height: 100vh;
-  color: #3d2000;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: var(--color-accent-200); }
+input::placeholder { color: var(--color-neutral-600); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(180, 83, 9, 0.3); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(180, 83, 9, 0.5); }
+::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
 
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes riseIn   { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+@keyframes softIn   { from { opacity: 0 } to { opacity: 1 } }
+@keyframes bob      { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-7px) } }
+@keyframes sweep    { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+
+/* Loading mascot. MUST run on `linear` — the uneven keyframe spacing IS the easing.
+   Angular velocity ramps 10deg/8% -> ~4.7deg/% mid-flight -> 10deg/8%, i.e. accelerate
+   then decelerate. A timing function here fights the curve and flattens it. */
+@keyframes hopSpin {
+  0%   { transform: translateY(0)     rotate(0deg)   scale(1, 1) }
+  8%   { transform: translateY(-10px) rotate(10deg)  scale(0.94, 1.07) }
+  20%  { transform: translateY(-22px) rotate(45deg)  scale(1, 1) }
+  35%  { transform: translateY(-29px) rotate(110deg) }
+  50%  { transform: translateY(-31px) rotate(180deg) }
+  65%  { transform: translateY(-29px) rotate(250deg) }
+  80%  { transform: translateY(-22px) rotate(315deg) scale(1, 1) }
+  92%  { transform: translateY(-10px) rotate(350deg) scale(1.06, 0.93) }
+  100% { transform: translateY(0)     rotate(360deg) scale(1, 1) }
+}
+@keyframes hopShadow {
+  0%, 100% { transform: scaleX(1);    opacity: 0.22 }
+  50%      { transform: scaleX(0.55); opacity: 0.07 }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes dropBounce {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-6px) scale(1.04); }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.4s ease both;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease both;
-}
-
-.animate-drop-bounce {
-  animation: dropBounce 2.4s ease-in-out infinite;
-}
-
-.skeleton {
-  background: linear-gradient(90deg, #ffe082 25%, #fff3cd 50%, #ffe082 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease infinite;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(245, 166, 35, 0.25);
-}
-
-.honey-shadow {
-  box-shadow: 0 4px 24px rgba(180, 83, 9, 0.14), 0 1px 4px rgba(180, 83, 9, 0.08);
-}
-
-.honey-shadow-lg {
-  box-shadow: 0 8px 40px rgba(180, 83, 9, 0.18), 0 2px 8px rgba(180, 83, 9, 0.1);
-}
-
-.tier-1-glow { box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.5), 0 8px 32px rgba(180, 83, 9, 0.15); }
-.tier-2-glow { box-shadow: 0 0 0 2px rgba(209, 213, 219, 0.6), 0 4px 16px rgba(0,0,0,0.07); }
-.tier-3-glow { box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2), 0 4px 12px rgba(0,0,0,0.05); }
+.animate-rise-in { animation: riseIn 0.5s ease both; }
+.animate-soft-in { animation: softIn 0.3s ease both; }
+.animate-bob { animation: bob 3.4s ease-in-out infinite; }

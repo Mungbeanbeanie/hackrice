@@ -1,8 +1,14 @@
 from app import config
-from app.models import ComparisonResult, Product, Tier
+from app.models import ComparisonResult, Group, Product
+
+_GROUP_RANK: dict[Group, int] = {
+    Group.SAME_SPEC: 0,
+    Group.SAME_JOB: 1,
+    Group.CLEARS_FLOOR: 2,
+}
 
 
-def _assign_tier(spec_match: float, similarity: float, has_reviews: bool) -> Tier:
+def _assign_group(spec_match: float, similarity: float, has_reviews: bool) -> Group:
     # spec_match and similarity arrive normalized against the best candidate in
     # this result set, so the thresholds read as "within 85% of the closest match
     # found" rather than as absolute cosines. Absolute ones were miscalibrated:
@@ -15,12 +21,15 @@ def _assign_tier(spec_match: float, similarity: float, has_reviews: bool) -> Tie
     # candidates being presented as quality-verified on no evidence. Tier 3 is
     # where an unverified-but-cheap listing belongs.
     if not has_reviews:
-        return Tier.TIER_3
-    if spec_match >= config.SPEC_MATCH_TIER1:
-        return Tier.TIER_1
-    if spec_match >= config.SPEC_MATCH_TIER2 or similarity >= config.SPEC_MATCH_TIER1:
-        return Tier.TIER_2
-    return Tier.TIER_3
+        return Group.CLEARS_FLOOR
+    if spec_match >= config.SPEC_MATCH_SAME_SPEC:
+        return Group.SAME_SPEC
+    if (
+        spec_match >= config.SPEC_MATCH_SAME_JOB
+        or similarity >= config.SPEC_MATCH_SAME_SPEC
+    ):
+        return Group.SAME_JOB
+    return Group.CLEARS_FLOOR
 
 
 def _normalized(scores: dict[str, float]) -> dict[str, float]:
@@ -57,7 +66,7 @@ def rank_candidates(
         # candidate by the same constant.
         similarity = similarities[product.id]
         value_score = quality * similarity / product.price
-        tier = _assign_tier(
+        group = _assign_group(
             norm_spec_matches[product.id],
             norm_similarities[product.id],
             product.review_count > 0,
@@ -77,10 +86,10 @@ def rank_candidates(
                 similarity=similarity,
                 quality_score=quality,
                 value_score=value_score,
-                tier=tier,
+                group=group,
                 savings_amount=savings_amount,
                 savings_percent=savings_percent,
             )
         )
 
-    return sorted(results, key=lambda r: (r.tier.value, -r.value_score))
+    return sorted(results, key=lambda r: (_GROUP_RANK[r.group], -r.value_score))

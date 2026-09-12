@@ -1,7 +1,7 @@
 import pytest
 
 from app import config
-from app.models import Product, Tier
+from app.models import Group, Product
 from app.scoring import quality, value
 
 
@@ -77,7 +77,7 @@ def test_unrated_product_cannot_rise_above_tier_3() -> None:
     results = value.rank_candidates(
         [product], {product.id: 5.0}, {product.id: 1.0}, {product.id: 1.0}
     )
-    assert [r.tier for r in results] == [Tier.TIER_3]
+    assert [r.group for r in results] == [Group.CLEARS_FLOOR]
 
 
 def test_rated_product_with_top_spec_match_reaches_tier_1() -> None:
@@ -85,7 +85,7 @@ def test_rated_product_with_top_spec_match_reaches_tier_1() -> None:
     results = value.rank_candidates(
         [product], {product.id: 5.0}, {product.id: 1.0}, {product.id: 1.0}
     )
-    assert [r.tier for r in results] == [Tier.TIER_1]
+    assert [r.group for r in results] == [Group.SAME_SPEC]
 
 
 def test_candidate_pricier_than_target_reports_no_savings() -> None:
@@ -97,11 +97,20 @@ def test_candidate_pricier_than_target_reports_no_savings() -> None:
     assert results[0].savings_percent is None
 
 
-def test_tiers_spread_across_a_realistic_similarity_range() -> None:
+def test_groups_sort_by_equivalence_not_alphabetically() -> None:
     # Absolute cosine thresholds put this whole spread in Tier 3; normalizing
     # against the best candidate in the set is what makes them discriminate.
+    #
+    # Ordered, not a set: Group's string values sort lexicographically as
+    # clears_floor < same_job < same_spec, the exact reverse of the intended
+    # order, so sorting on the raw enum value silently inverts the page. Only
+    # an ordered assert can see that; _GROUP_RANK is what makes it pass.
     products = [_product(id=f"p{i}", review_count=100) for i in range(3)]
     scores = dict(zip([p.id for p in products], [0.75, 0.5, 0.1], strict=True))
     quality_scores = dict.fromkeys(scores, 5.0)
     results = value.rank_candidates(products, quality_scores, scores, scores)
-    assert {r.tier for r in results} == {Tier.TIER_1, Tier.TIER_2, Tier.TIER_3}
+    assert [r.group for r in results] == [
+        Group.SAME_SPEC,
+        Group.SAME_JOB,
+        Group.CLEARS_FLOOR,
+    ]
