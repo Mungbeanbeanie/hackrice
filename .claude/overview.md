@@ -14,12 +14,23 @@ This SaaS platform shifts the paradigm from **discount acquisition** to **capita
 * **Non-Scam Quality Verification:** Uses statistical filtering to eliminate low-cost, low-quality "junk" generic products.
 * **Cross-Category Alternatives:** Bridges non-overlapping feature spaces (e.g., matching a high-end down pillow to a high-density latex ergonomic pillow) by evaluating latent functional utility rather than rigid attribute name matching.
 
+### 1.3 Search Input Modes
+The system accepts three distinct input modes, each resolving differently before entering the shared scoring pipeline (Section 3):
+
+* **URL Mode:** User pastes a link to a specific product page. The linked product is scraped/parsed and used directly as the **target reference product**.
+* **Exact Product Mode:** User enters a specific product name/brand/model as free text (e.g., "Purple Harmony Pillow"). The system searches for that product via SerpAPI and uses the top match as the **target reference product** — functionally identical to URL Mode downstream, differing only in how the target is resolved.
+* **Description Mode:** User enters a general functional description (e.g., "ergonomic memory foam pillow") rather than a specific product. There is **no target reference product** in this mode — the query itself is embedded and used as the reference vector for Layer 1 similarity (Section 3.1). The UI's Target Reference Product header (Section 5.1) is omitted, and candidates are ranked directly by $Q \cdot \text{Similarity}(\mathbf{u}_{\text{query}}, \mathbf{v}) / \text{Cost}$.
+
 ---
 
 ## 2. High-Level System Workflow
 
 ```
-[ User Search Input / Target Product URL ]
+[ User Search Input: URL | Exact Product | Description ]
+                   │
+                   ▼
+   [ Target Resolution (URL/Exact Product only) ]
+   (skipped in Description Mode — query embeds directly)
                    │
                    ▼
        [ Data Ingestion Engine ]
@@ -66,6 +77,8 @@ Where:
 Similarity between the target product vector $\mathbf{u}_{\text{latent}}$ and an alternative candidate vector $\mathbf{v}_{\text{latent}}$ within the latent subspace is calculated using Cosine Similarity:
 
 $$\text{Similarity}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u}_{\text{latent}} \cdot \mathbf{v}_{\text{latent}}}{\|\mathbf{u}_{\text{latent}}\| \|\mathbf{v}_{\text{latent}}\|}$$
+
+**Reference vector by search mode (Section 1.3):** In URL Mode and Exact Product Mode, $\mathbf{u}_{\text{latent}}$ is the resolved target product's projection into latent space. In Description Mode, there is no target product — $\mathbf{u}_{\text{latent}}$ is instead the projection of the embedded query text itself, placed into the same latent space via $V^T$.
 
 ---
 
@@ -134,17 +147,19 @@ $$V = \frac{Q \cdot \text{Similarity}(\mathbf{u}, \mathbf{v})}{\text{Cost}}$$
 ### 4.2 Pipeline Execution Flow
 
 1. **Query Processing:**
-   * User inputs a search query (e.g., "ergonomic memory foam pillow") or pastes a target product URL into the web application.
-   * FastAPI parses the query, extracts core category bounds, and checks the Redis cache layer.
+   * User selects one of the three input modes (Section 1.3) — **URL**, **Exact Product**, or **Description** — and submits it via the web application.
+   * FastAPI checks the cache layer for the resolved query/target key.
+   * **URL / Exact Product Mode:** the backend resolves a single target reference product (scrape for URL Mode, top SerpAPI match for Exact Product Mode) before proceeding.
+   * **Description Mode:** no target product is resolved; the raw query text carries forward as the reference input for embedding.
 
 2. **Data Aggregation & Ingestion:**
-   * On a cache miss, the backend dispatches parallel API requests to structured shopping endpoints (SerpAPI Google Shopping).
+   * On a cache miss, the backend dispatches parallel API requests to structured shopping endpoints (SerpAPI Google Shopping) to gather candidate products.
    * Aggregated payload extracts product title, price, brand, raw rating, review volume, vendor details, image URLs, and technical spec text.
 
 3. **Vector Vectorization & Matrix Processing:**
-   * Text descriptions and technical specs pass into an embedding pipeline to form dense representation vectors.
+   * Text descriptions and technical specs (and, in Description Mode, the query text itself) pass into an embedding pipeline to form dense representation vectors.
    * Numerical features (price, physical dimensions, material weight) are standardized via category Z-scores ($z_k$) and transformed via weight matrix $\mathbf{W}$.
-   * Latent concept alignment is computed using SVD / dense cosine distance against the target reference product.
+   * Latent concept alignment is computed using SVD / dense cosine distance against the reference vector — the target reference product (URL/Exact Product Mode) or the embedded query (Description Mode).
 
 4. **Quality & Value Computation:**
    * Bayesian quality score $Q$ is computed per candidate item.
@@ -196,7 +211,8 @@ The web application layout centers on immediate visual clarity, contrasting the 
 ```
 
 ### 5.1 Component Breakdown
-* **Target Baseline Header:** Displays the user's initial selection to serve as the reference anchor for price, specs, and rating benchmarks.
+* **Search Mode Selector:** Lets the user choose URL, Exact Product, or Description mode (Section 1.3) before submitting a query; the input field's placeholder/validation adapts accordingly (URL format vs. free text).
+* **Target Baseline Header:** Displays the resolved target product to serve as the reference anchor for price, specs, and rating benchmarks. **Rendered only in URL and Exact Product modes** — omitted entirely in Description Mode, since no single target product is resolved (savings %/spec-match figures for candidates are instead shown relative to the query's implied budget/functional expectations where available, or omitted).
 * **Tier 1 (Direct Factory/Generic Equivalent):** Displays products with matching materials and structural specifications produced without brand markups.
 * **Tier 2 (Cross-Category Functional Alternative):** Displays products from different material domains that achieve equivalent functional utility mapped through the latent SVD matrix layer.
 * **Tier 3 (Budget Benchmark):** Displays the lowest absolute price point that successfully passes the Bayesian Quality ($Q$) safety threshold, catering to maximum cost reduction.
