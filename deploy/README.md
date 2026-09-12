@@ -19,16 +19,22 @@ Done:
 
 - Both Cloud Compute instances, with the firewall group attached (step 1)
 - Docker, the `deploy` user and SSH hardening on each box (step 2)
-- Both GitHub Environments, each holding `SSH_HOST` / `SSH_USER` / `SSH_KEY` (step 3)
+- Both GitHub Environments, each holding `SSH_HOST` / `SSH_USER` / `SSH_KEY` /
+  `DATABASE_URL` (step 3)
 - `DEPLOY_ENABLED=true` — deploys are live, and staging has taken several
 - The `cache` service (Valkey) in [`docker-compose.yml`](docker-compose.yml) —
   no provisioning, no secret, no firewall rule: it runs on the box beside `api`
-  and is reachable only over the compose network. Nothing to do per-environment.
+  and is reachable only over the compose network. Nothing to do per-environment:
+  `CACHE_URL` defaults to `redis://cache:6379` in the compose file.
 
 Remaining:
 
-- The Managed Postgres cluster, its two databases and per-environment users (step 1)
-- A `DATABASE_URL` secret in each GitHub Environment (step 3)
+- `SERPAPI_API_KEY` and `OPENAI_API_KEY` in each GitHub Environment (step 3).
+  Neither is set, so every deploy writes them into `.env` as empty strings and
+  search fails on the box until they exist.
+- The per-environment Postgres users and the staging connection limit (step 1) —
+  the cluster and a `DATABASE_URL` per environment exist, but whether that URL
+  uses a per-environment user or the cluster admin has not been checked.
 - A domain — `SITE_ADDRESS` is unset in both environments, so both boxes serve
   plain HTTP on their bare IP (step 4)
 
@@ -192,6 +198,19 @@ Per environment, add these **secrets**:
 | `SSH_USER` | `deploy` |
 | `SSH_KEY` | full contents of `~/.ssh/hackrice_deploy` (the private key) |
 | `DATABASE_URL` | the Vultr Postgres connection string for that environment's database |
+| `SERPAPI_API_KEY` | SerpAPI key. Unset writes an empty line to `.env` and every search fails with `SERPAPI_API_KEY is not set` |
+| `OPENAI_API_KEY` | OpenAI key for `text-embedding-3-small` |
+
+Every one of these is written into `.env` by the deploy job on each run, so a
+value that exists only in a hand-edited `.env` on the box is overwritten by the
+next deploy. The box is never the source of truth for config.
+
+`CACHE_URL` is deliberately **not** in that table. It defaults to
+`redis://cache:6379` in [`docker-compose.yml`](docker-compose.yml) — the `cache`
+service on the compose network, the same string in every environment and not
+sensitive. The deploy job still passes a `CACHE_URL` secret through if one
+exists, so pointing an environment at an external Redis stays a one-secret
+change; leave it unset otherwise.
 
 And one **variable** (not a secret):
 
