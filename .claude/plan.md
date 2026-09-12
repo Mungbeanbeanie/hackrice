@@ -50,3 +50,15 @@ Ported from the Figma draft (`frontend/Design nectarly web app/`, since deleted)
 - [x] `backend/tests/test_ingestion.py` — edge-case/runtime-safety tests for `serpapi_client.py` (missing key, wrapped network-timeout error, malformed response parsing) — not originally scoped, added to cover the timeout/error-wrapping fix
 - [x] `backend/tests/test_scoring.py` — edge-case/runtime-safety tests for `quality.py`/`value.py` (zero reviews, zero price, empty input, below-quality-threshold filtering) — not $Q$/$V$ formula correctness, per instruction to test runtime safety, not efficacy
 - [x] `backend/tests/test_pipeline.py` — integration test of `/api/search` via `TestClient`, with `serpapi_client`/`target_resolver`/`embeddings` mocked — no-candidates branch, target-not-found 404, full pipeline run without raising on mocked realistic input 
+
+## Phase 8: Accounts
+Email-based account creation (overview.md §6.1) — verification code, not password. No frontend UI yet (backend API only); login form is a separate later stage. Blocked on the Vultr Managed Postgres cluster actually being provisioned (deploy/README.md §1 "Remaining") — code is written against DATABASE_URL regardless, but cannot run until then.
+- [x] `backend/app/config.py` — add `DATABASE_URL` (moved here from `main.py`, where it's currently unused dead code), `RESEND_API_KEY`, `SESSION_SECRET` (HMAC signing key for session cookies)
+- [ ] `backend/app/models.py` — add `Account` schema: `id`, `email`, `created_at`
+- [ ] `backend/app/db.py` — Postgres connection (`psycopg`, sync — matches the rest of the codebase's sync style, no async elsewhere) + idempotent schema bootstrap (`CREATE TABLE IF NOT EXISTS accounts`/`verification_codes` on startup) — no migration framework yet, per `deploy/README.md` §6's "wire it in when the first table lands" note; this *is* that first table
+- [ ] `backend/app/accounts/store.py` — DB access: get-or-create account by email, store/consume verification codes (raw SQL via `db.py`'s connection)
+- [ ] `backend/app/accounts/verification.py` — generate a random numeric code + expiry, verify a submitted code against what's stored (via `store.py`)
+- [ ] `backend/app/accounts/session.py` — sign/verify a session token (HMAC-SHA256 over account id + expiry, using `config.SESSION_SECRET`); issue/read the httponly cookie
+- [ ] `backend/app/accounts/mailer.py` — Resend API wrapper, sends the verification code by email
+- [ ] `backend/app/routes/auth.py` — `POST /api/auth/request-code` (email → generates+emails a code, always 200 regardless of whether the account exists yet, to avoid leaking which emails are registered), `POST /api/auth/verify` (email+code → verifies, creates the account row on first success, issues the session cookie), `GET /api/auth/me` (reads the session cookie → current account or 401)
+- [ ] `backend/app/main.py` — wire `auth.router` in, run `db.py`'s schema bootstrap on startup (extends Phase 0 file)

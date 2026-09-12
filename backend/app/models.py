@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
@@ -48,3 +49,9 @@ class ComparisonResult(BaseModel):
     tier: Tier
     savings_amount: float | None
     savings_percent: float | None
+
+
+class Account(BaseModel):
+    id: str
+    email: str
+    created_at: datetime

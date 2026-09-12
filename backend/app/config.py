@@ -3,6 +3,15 @@ import os
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Set from the Vultr Managed Postgres connection string in the deploy env.
+# Nothing reads it yet — there is no data model. When one lands, this is where
+# the engine gets built, and deploy/README.md covers wiring migrations in.
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Phase 8 accounts: transactional email (Resend) + session-cookie signing.
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+SESSION_SECRET = os.getenv("SESSION_SECRET")
+
 # Layer 1 SVD default latent concept count (overview.md §3.1).
 SVD_RANK = int(os.getenv("SVD_RANK", "10"))
 
