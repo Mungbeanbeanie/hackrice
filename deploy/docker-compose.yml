@@ -11,7 +11,6 @@ services:
     image: ghcr.io/mungbeanbeanie/hackrice-api:${IMAGE_TAG}
     restart: unless-stopped
     environment:
-      # Empty until a Managed Postgres cluster exists — nothing reads it yet.
       DATABASE_URL: ${DATABASE_URL:-}
       SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
