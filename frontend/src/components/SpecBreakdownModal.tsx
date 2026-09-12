@@ -13,13 +13,12 @@ interface SpecRow {
   spec: string;
   target: string;
   alternative: string;
-  verdict: Verdict;
+  verdict: Verdict | null;
 }
 
 const VERDICT_STYLE: Record<Verdict, { label: string; bg: string; color: string }> = {
   same: { label: "Same", bg: "var(--color-accent-2-100)", color: "var(--color-accent-2-700)" },
   better: { label: "Better", bg: "var(--color-accent-2-200)", color: "var(--color-accent-2-800)" },
-  equivalent: { label: "Equivalent", bg: "var(--color-accent-2-100)", color: "var(--color-accent-2-700)" },
   close: { label: "Close", bg: "var(--color-surface)", color: "var(--color-neutral-700)" },
   different: { label: "Different", bg: "var(--color-accent-100)", color: "var(--color-accent-800)" },
   lower: { label: "Lower", bg: "var(--color-accent-200)", color: "var(--color-accent-800)" },
@@ -34,7 +33,7 @@ function buildRows(product: Product, target: Product | null): SpecRow[] {
   }
   return target.specs.map((t) => {
     const match = product.specs.find((s) => s.key === t.key);
-    return { spec: t.key, target: t.value, alternative: match?.value ?? "—", verdict: match?.verdict ?? "different" };
+    return { spec: t.key, target: t.value, alternative: match?.value ?? "—", verdict: match?.verdict ?? null };
   });
 }
 
@@ -134,36 +133,51 @@ export default function SpecBreakdownModal({ product, targetProduct, onClose }: 
 
         {/* Body */}
         <div className="overflow-y-auto flex-1" style={{ padding: "clamp(16px, 2.2vw, 24px) clamp(20px, 2.6vw, 28px)" }}>
-          <p className="text-neutral-800" style={{ fontSize: "14px", lineHeight: 1.55, marginBottom: "var(--space-4)" }}>
-            {product.rationale}
-          </p>
-          <div className="flex flex-col">
-            {rows.map((row) => {
-              const v = VERDICT_STYLE[row.verdict];
-              return (
-                <div
-                  key={row.spec}
-                  className="flex items-center gap-3 flex-wrap border-t border-divider"
-                  style={{ padding: "var(--space-3) 0" }}
-                >
-                  <span className="text-neutral-700 font-bold" style={{ flex: "0 0 118px", fontSize: "12.5px" }}>
-                    {row.spec}
-                  </span>
-                  <span className="text-neutral-700" style={{ flex: "1 1 120px", fontSize: "14px" }}>
-                    {row.target}
-                  </span>
-                  <ArrowRight size={15} strokeWidth={2.75} color="var(--color-neutral-400)" className="flex-shrink-0" />
-                  <span style={{ flex: "1 1 120px", fontSize: "14px", fontWeight: 600 }}>{row.alternative}</span>
-                  <span
-                    className="flex-shrink-0 font-bold rounded-full"
-                    style={{ fontSize: "11.5px", padding: "3px var(--space-2)", background: v.bg, color: v.color }}
+          {product.rationale && (
+            <p className="text-neutral-800" style={{ fontSize: "14px", lineHeight: 1.55, marginBottom: "var(--space-4)" }}>
+              {product.rationale}
+            </p>
+          )}
+          {/* Retailer listings publish physical specs unevenly, and plenty of
+              pairs share none at all. Saying so beats a body that just stops. */}
+          {rows.length === 0 ? (
+            <p
+              className="text-neutral-700 border-t border-divider"
+              style={{ fontSize: "13.5px", paddingTop: "var(--space-3)" }}
+            >
+              Neither listing publishes specs we can line up side by side.
+            </p>
+          ) : (
+            <div className="flex flex-col">
+              {rows.map((row) => {
+                const v = row.verdict && VERDICT_STYLE[row.verdict];
+                return (
+                  <div
+                    key={row.spec}
+                    className="flex items-center gap-3 flex-wrap border-t border-divider"
+                    style={{ padding: "var(--space-3) 0" }}
                   >
-                    {v.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <span className="text-neutral-700 font-bold" style={{ flex: "0 0 118px", fontSize: "12.5px" }}>
+                      {row.spec}
+                    </span>
+                    <span className="text-neutral-700" style={{ flex: "1 1 120px", fontSize: "14px" }}>
+                      {row.target}
+                    </span>
+                    <ArrowRight size={15} strokeWidth={2.75} color="var(--color-neutral-400)" className="flex-shrink-0" />
+                    <span style={{ flex: "1 1 120px", fontSize: "14px", fontWeight: 600 }}>{row.alternative}</span>
+                    {v && (
+                      <span
+                        className="flex-shrink-0 font-bold rounded-full"
+                        style={{ fontSize: "11.5px", padding: "3px var(--space-2)", background: v.bg, color: v.color }}
+                      >
+                        {v.label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

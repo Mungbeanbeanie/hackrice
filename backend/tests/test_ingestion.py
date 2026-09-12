@@ -114,6 +114,19 @@ def test_extracts_numeric_and_categorical_specs() -> None:
     assert specs["review_count"] == 120.0
     assert specs["measure_in"] == 18.0
     assert specs["size"] == "queen"
+    # "memory foam", not "foam": the alternation lists multi-word terms before
+    # the single words they contain, so the longer match has to win.
+    assert specs["material"] == "memory foam"
+
+
+def test_first_material_in_the_title_wins() -> None:
+    # One material column per product, or the matrix gets a second half-filled
+    # feature for the same physical attribute.
+    raw = {"position": 1, "title": "Latex and Cotton Pillow"}
+    specs = [
+        s for s in serpapi_client._parse_product(raw, 0).specs if s.name == "material"
+    ]
+    assert [s.value for s in specs] == ["latex"]
 
 
 def test_unit_aliases_collapse_to_one_spec_name() -> None:

@@ -24,7 +24,10 @@ def _assign_group(spec_match: float, similarity: float, has_reviews: bool) -> Gr
         return Group.CLEARS_FLOOR
     if spec_match >= config.SPEC_MATCH_SAME_SPEC:
         return Group.SAME_SPEC
-    if spec_match >= config.SPEC_MATCH_SAME_JOB or similarity >= config.SPEC_MATCH_SAME_SPEC:
+    if (
+        spec_match >= config.SPEC_MATCH_SAME_JOB
+        or similarity >= config.SPEC_MATCH_SAME_SPEC
+    ):
         return Group.SAME_JOB
     return Group.CLEARS_FLOOR
 
