@@ -26,6 +26,46 @@ with two separate databases (`hackrice_prod`, `hackrice_staging`) to halve the
 cost, or run two clusters for real isolation. Two databases on one cluster is
 fine early; split them before staging traffic can plausibly affect production.
 
+One cluster shares CPU, RAM, disk, the connection limit, the maintenance window
+and the backup schedule. The data is isolated; the resources are not. Two
+consequences worth knowing before you rely on it:
+
+- A runaway staging query can starve production of connections. This is the
+  failure you will actually hit, not data leakage.
+- Version upgrades and restarts hit both environments at once, so you cannot
+  test a Postgres upgrade on staging first.
+
+Give each environment its own user rather than sharing the cluster admin, and
+cap staging so it cannot exhaust the pool. Run this once as the admin user:
+
+```sql
+-- PUBLIC holds CONNECT on every database by default, so revoking from PUBLIC
+-- is the control that actually does something. Revoking from a named user
+-- while PUBLIC still grants it accomplishes nothing.
+REVOKE CONNECT ON DATABASE hackrice_prod    FROM PUBLIC;
+REVOKE CONNECT ON DATABASE hackrice_staging FROM PUBLIC;
+
+CREATE USER hackrice_prod_app    WITH PASSWORD '<generate one>';
+CREATE USER hackrice_staging_app WITH PASSWORD '<generate one>';
+
+GRANT CONNECT ON DATABASE hackrice_prod    TO hackrice_prod_app;
+GRANT CONNECT ON DATABASE hackrice_staging TO hackrice_staging_app;
+
+-- Staging cannot take more than 5 of the cluster's connections.
+ALTER USER hackrice_staging_app CONNECTION LIMIT 5;
+```
+
+Then, connected to each database in turn, give its own user rights inside it:
+
+```sql
+GRANT ALL ON SCHEMA public TO hackrice_prod_app;     -- while in hackrice_prod
+GRANT ALL ON SCHEMA public TO hackrice_staging_app;  -- while in hackrice_staging
+```
+
+The `DATABASE_URL` for each environment should use that environment's user, not
+the cluster admin. Connecting to the wrong database then fails outright instead
+of quietly succeeding against production.
+
 **Firewall group** (Vultr → Network → Firewall), attached to both instances.
 Add all three rules to **both** the IPv4 and IPv6 tabs — Vultr evaluates the two
 families separately and default-denies anything unmatched, so v6-only rules
