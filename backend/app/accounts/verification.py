@@ -18,7 +18,9 @@ def _hash_code(code: str) -> str:
 
 def request_code(email: str) -> str:
     code = _generate_code()
-    expires_at = datetime.now(UTC) + timedelta(minutes=config.VERIFICATION_CODE_TTL_MINUTES)
+    expires_at = datetime.now(UTC) + timedelta(
+        minutes=config.VERIFICATION_CODE_TTL_MINUTES
+    )
     store.store_verification_code(email, _hash_code(code), expires_at)
     return code
 

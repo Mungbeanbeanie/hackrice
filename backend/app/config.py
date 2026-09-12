@@ -10,8 +10,16 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Phase 8 accounts: transactional email (Resend) + session-cookie signing.
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+# Resend's own sandbox sender — works without a verified domain. Override once
+# a verified @nectarly.us sender exists in the Resend account.
+MAIL_FROM_ADDRESS = os.getenv("MAIL_FROM_ADDRESS", "onboarding@resend.dev")
 SESSION_SECRET = os.getenv("SESSION_SECRET")
 VERIFICATION_CODE_TTL_MINUTES = int(os.getenv("VERIFICATION_CODE_TTL_MINUTES", "10"))
+SESSION_TTL_DAYS = int(os.getenv("SESSION_TTL_DAYS", "30"))
+# Defaults false: both deploy boxes currently serve plain HTTP on a bare IP (no
+# domain/TLS yet — deploy/README.md §1). secure=True would stop the browser
+# from ever sending the cookie back over HTTP. Flip once a domain + TLS exist.
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 # Layer 1 SVD default latent concept count (overview.md §3.1).
 SVD_RANK = int(os.getenv("SVD_RANK", "10"))
