@@ -19,13 +19,16 @@ def rank_candidates(
 ) -> list[ComparisonResult]:
     results = []
     for product in products:
-        quality = quality_scores[product.id]
+        quality = quality_scores.get(product.id)
+        similarity = similarities.get(product.id)
+        spec_match = spec_matches.get(product.id)
+        if quality is None or similarity is None or spec_match is None:
+            continue
         if quality < config.MIN_QUALITY_THRESHOLD or product.price <= 0:
             continue
 
-        similarity = similarities[product.id]
         value_score = quality * similarity / product.price
-        tier = _assign_tier(spec_matches[product.id], similarity)
+        tier = _assign_tier(spec_match, similarity)
 
         savings_amount = (
             target_price - product.price if target_price is not None else None

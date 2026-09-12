@@ -9,7 +9,10 @@ def compute_quality(
     c = c if c is not None else config.BAYESIAN_C
     v = product.review_count
     R = product.rating
-    return (v / (v + m)) * R + (m / (v + m)) * c
+    denom = v + m
+    if denom == 0:
+        return c
+    return (v / denom) * R + (m / denom) * c
 
 
 def compute_quality_scores(

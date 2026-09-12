@@ -1,3 +1,5 @@
+import pytest
+
 from app import config
 from app.models import Product
 from app.scoring import quality, value
@@ -26,6 +28,14 @@ def test_compute_quality_handles_zero_reviews() -> None:
     assert isinstance(score, float)
 
 
+def test_compute_quality_handles_zero_denominator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(config, "BAYESIAN_M", 0.0)
+    product = _product(review_count=0)
+    assert quality.compute_quality(product) == config.BAYESIAN_C
+
+
 def test_compute_quality_scores_handles_empty_list() -> None:
     assert quality.compute_quality_scores([]) == {}
 
@@ -49,3 +59,8 @@ def test_rank_candidates_filters_below_quality_threshold() -> None:
 
 def test_rank_candidates_handles_empty_input() -> None:
     assert value.rank_candidates([], {}, {}, {}) == []
+
+
+def test_rank_candidates_skips_product_missing_from_score_dicts() -> None:
+    product = _product()
+    assert value.rank_candidates([product], {}, {}, {}) == []
