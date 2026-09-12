@@ -13,6 +13,29 @@ thing it manages.
 
 ---
 
+## Status
+
+Done:
+
+- Both Cloud Compute instances, with the firewall group attached (step 1)
+- Docker, the `deploy` user and SSH hardening on each box (step 2)
+- Both GitHub Environments, each holding `SSH_HOST` / `SSH_USER` / `SSH_KEY` (step 3)
+- `DEPLOY_ENABLED=true` — deploys are live, and staging has taken several
+
+Remaining:
+
+- The Managed Postgres cluster, its two databases and per-environment users (step 1)
+- A `DATABASE_URL` secret in each GitHub Environment (step 3)
+- A domain — `SITE_ADDRESS` is unset in both environments, so both boxes serve
+  plain HTTP on their bare IP (step 4)
+
+**Production has never received a deploy.** `DEPLOY_ENABLED` was turned on after
+the most recent push to `main`, so only the staging box has containers on it.
+The first merge to `main` will be production's first deploy — worth triggering
+deliberately rather than discovering it under time pressure.
+
+---
+
 ## 1. Provision
 
 **Two Cloud Compute instances**, one per environment:
