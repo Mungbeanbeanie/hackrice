@@ -2,7 +2,9 @@ from app import config
 from app.models import Product
 
 
-def compute_quality(product: Product, m: float | None = None, c: float | None = None) -> float:
+def compute_quality(
+    product: Product, m: float | None = None, c: float | None = None
+) -> float:
     m = m if m is not None else config.BAYESIAN_M
     c = c if c is not None else config.BAYESIAN_C
     v = product.review_count

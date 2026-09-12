@@ -33,7 +33,9 @@ def cosine_similarity(u: np.ndarray, v: np.ndarray) -> float:
     return float(np.dot(u, v) / denom)
 
 
-def compute_similarities(model: SVDModel, reference_vector: list[float]) -> dict[str, float]:
+def compute_similarities(
+    model: SVDModel, reference_vector: list[float]
+) -> dict[str, float]:
     ref_latent = project(model, reference_vector)
     return {
         product_id: cosine_similarity(ref_latent, model.latent_rows[i])
