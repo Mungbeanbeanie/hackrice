@@ -1,4 +1,5 @@
 import time
+from typing import cast
 
 import httpx
 import pytest
@@ -57,6 +58,40 @@ def test_mailer_wraps_network_failure_as_runtime_error(
 
     with pytest.raises(RuntimeError, match="Resend request failed"):
         mailer.send_verification_code("a@b.com", "123456")
+
+
+def test_mailer_surfaces_resend_error_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The status line alone ("403 Forbidden") does not say why Resend refused.
+    monkeypatch.setattr(config, "RESEND_API_KEY", "fake-key")
+    body = '{"statusCode":403,"message":"You can only send testing emails to..."}'
+
+    def forbidden(*args: object, **kwargs: object) -> httpx.Response:
+        return httpx.Response(
+            403, text=body, request=httpx.Request("POST", mailer.RESEND_URL)
+        )
+
+    monkeypatch.setattr(httpx, "post", forbidden)
+
+    with pytest.raises(RuntimeError, match="only send testing emails"):
+        mailer.send_verification_code("a@b.com", "123456")
+
+
+def test_mailer_sends_from_configured_address(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(config, "RESEND_API_KEY", "fake-key")
+    monkeypatch.setattr(config, "MAIL_FROM_ADDRESS", "hi@nectarly.us")
+    sent: dict[str, object] = {}
+
+    def capture(*args: object, **kwargs: object) -> httpx.Response:
+        sent.update(cast(dict[str, object], kwargs["json"]))
+        return httpx.Response(
+            200, json={"id": "x"}, request=httpx.Request("POST", mailer.RESEND_URL)
+        )
+
+    monkeypatch.setattr(httpx, "post", capture)
+    mailer.send_verification_code("a@b.com", "123456")
+
+    assert sent["from"] == "hi@nectarly.us"
+    assert sent["to"] == ["a@b.com"]
 
 
 def test_get_pool_raises_when_database_url_unset(

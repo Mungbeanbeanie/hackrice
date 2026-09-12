@@ -19,6 +19,11 @@ services:
       # account rows ever get created. ADMIN_PASSWORD gates /api/admin, which
       # 503s while unset rather than serving that data open.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Resend only delivers to the account owner while the sender is the
+      # shared sandbox domain. Point this at a verified domain to email anyone
+      # else. Defaulted here, not `:-`, so an unset var keeps the sandbox
+      # sender instead of blanking the `from` field.
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-onboarding@resend.dev}
       SESSION_SECRET: ${SESSION_SECRET:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       # The `cache` service below. Not a secret and identical per environment,
