@@ -12,6 +12,7 @@ branch merges into a tested/prod pipeline.
 |------|------|--------|--------|
 | 2026-09-12 | backend/pyproject.toml | + `psycopg[binary]>=3.1` | Phase 8 accounts — Postgres connection (`db.py`) |
 | 2026-09-12 | backend/pyproject.toml | + `psycopg-pool>=3.2` | Phase 8 accounts — connection pooling (`db.py`) |
+| 2026-09-12 | frontend/package.json | + `lucide-react@^1.45.0` | Organic redesign — icon set mandated by design handoff (stroke-width 2.75) |
 
 ## Merged
 

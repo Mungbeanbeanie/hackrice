@@ -1,17 +1,22 @@
-import { useState } from "react";
+import { ArrowRight, Search } from "lucide-react";
 
 interface Props {
+  value: string;
+  onChange: (value: string) => void;
   loading: boolean;
   onSearch: (query: string) => void;
+  // hero = landing page's large pill ("Find alternatives" + arrow icon);
+  // compact = the sticky app header's smaller pill ("Search").
+  variant?: "hero" | "compact";
 }
 
 // One box for all three search modes — the backend parses the raw string to
 // decide whether it's a URL, an exact product, or a description. Anything
 // non-empty is therefore valid input here.
-const PLACEHOLDER = "Paste a product link, search a product, or describe what you need…";
+const PLACEHOLDER = "Paste a link, name a product, or describe what you need";
 
-export default function SearchBar({ loading, onSearch }: Props) {
-  const [value, setValue] = useState("");
+export default function SearchBar({ value, onChange, loading, onSearch, variant = "compact" }: Props) {
+  const hero = variant === "hero";
 
   return (
     <form
@@ -19,49 +24,48 @@ export default function SearchBar({ loading, onSearch }: Props) {
         e.preventDefault();
         if (value.trim()) onSearch(value.trim());
       }}
-      className="w-full"
+      className={hero ? "w-full" : "flex-1 min-w-[280px]"}
+      style={hero ? { maxWidth: "560px" } : undefined}
     >
       <div
-        className="flex items-center gap-3 px-4 py-3 rounded-3xl transition-all duration-200"
+        className="flex items-center rounded-full bg-neutral-100 border border-divider"
         style={{
-          background: "rgba(255,255,255,0.85)",
-          border: "2px solid rgba(245,166,35,0.4)",
-          boxShadow: "0 4px 20px rgba(180,83,9,0.12)",
+          gap: "var(--space-3)",
+          padding: hero
+            ? "var(--space-2) var(--space-2) var(--space-2) var(--space-4)"
+            : "var(--space-1) var(--space-1) var(--space-1) var(--space-4)",
+          boxShadow: hero ? "var(--shadow-md)" : "none",
         }}
       >
+        <Search size={hero ? 19 : 17} color="var(--color-accent)" strokeWidth={2.75} className="flex-shrink-0" />
         <input
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={PLACEHOLDER}
-          className="flex-1 bg-transparent outline-none text-base placeholder:text-amber-700/40 font-medium"
-          style={{ color: "#3d2000" }}
           disabled={loading}
+          className="flex-1 min-w-0 bg-transparent outline-none text-text"
+          style={{ fontSize: hero ? "15px" : "14.5px", padding: "var(--space-2) 0" }}
         />
-        {value && (
-          <button
-            type="button"
-            onClick={() => setValue("")}
-            className="text-amber-700/40 hover:text-amber-700 transition-colors text-lg leading-none"
-          >
-            ×
-          </button>
-        )}
         <button
           type="submit"
           disabled={!value.trim() || loading}
-          className="flex items-center gap-2 px-5 py-2 rounded-2xl text-sm font-semibold text-white transition-all duration-200 disabled:opacity-40"
+          className="flex-shrink-0 whitespace-nowrap inline-flex items-center rounded-full bg-accent text-bg font-heading hover:bg-accent-600 transition-colors disabled:opacity-40 cursor-pointer"
           style={{
-            background: "linear-gradient(135deg, #f5a623 0%, #e87d00 100%)",
-            boxShadow: "0 2px 10px rgba(180,83,9,0.3)",
+            padding: hero ? "var(--space-3) var(--space-4)" : "var(--space-2) var(--space-4)",
+            fontSize: hero ? "14.5px" : "14px",
+            lineHeight: 1.2,
+            gap: "var(--space-2)",
           }}
         >
           {loading ? (
-            <span
-              className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white"
-              style={{ animation: "spin 0.7s linear infinite" }}
-            />
+            <span className="w-4 h-4 rounded-full border-2 border-bg/40 border-t-bg animate-spin" />
+          ) : hero ? (
+            <>
+              Find alternatives
+              <ArrowRight size={16} strokeWidth={2.75} />
+            </>
           ) : (
-            "Find Deals"
+            "Search"
           )}
         </button>
       </div>

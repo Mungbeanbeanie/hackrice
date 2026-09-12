@@ -1,68 +1,61 @@
+import { useState } from "react";
+
 import type { Product } from "@/api/client";
 
 interface Props {
   product: Product;
 }
 
-function Stars({ rating }: { rating: number }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <svg key={i} width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path
-            d="M6 1l1.2 3.6H11L8.1 6.9l1.2 3.6L6 8.4l-3.3 2.1 1.2-3.6L1 4.6h3.8z"
-            fill={i <= Math.round(rating) ? "#f5a623" : "#e5d6b0"}
-          />
-        </svg>
-      ))}
-    </span>
-  );
-}
+const STRIPE = "repeating-linear-gradient(45deg, var(--color-neutral-200) 0 5px, var(--color-neutral-100) 5px 10px)";
 
 export default function TargetProductCard({ product }: Props) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImg = product.image && !imgFailed;
+
   return (
     <div
-      className="glass-card honey-shadow rounded-3xl p-5 animate-fade-in-up"
-      style={{ animationDelay: "0.05s" }}
+      className="bg-neutral-100 border border-divider rounded-lg flex items-center gap-4 flex-wrap animate-rise-in"
+      style={{ padding: "clamp(16px, 2vw, 22px)" }}
     >
-      <div className="flex items-start gap-4">
-        <div
-          className="w-20 h-20 rounded-2xl flex-shrink-0 overflow-hidden"
-          style={{ background: "#fff8e1" }}
-        >
+      <div
+        className="w-[62px] h-[62px] rounded-md flex-shrink-0 border border-divider overflow-hidden"
+        style={{ background: STRIPE }}
+      >
+        {showImg && (
           <img
             src={product.image}
             alt={product.name}
-            className="w-full h-full object-contain p-2"
+            className="w-full h-full object-contain"
+            onError={() => setImgFailed(true)}
           />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#b45309" }}>
-            You searched for
+        )}
+      </div>
+      <div className="flex-1 min-w-[200px]">
+        <p
+          className="uppercase text-neutral-700 font-bold"
+          style={{ fontSize: "11px", letterSpacing: "0.08em", marginBottom: "var(--space-1)" }}
+        >
+          Your reference product
+        </p>
+        <h2 style={{ fontSize: "20px", lineHeight: 1.2 }}>{product.name}</h2>
+        <p className="text-neutral-700" style={{ fontSize: "13.5px", marginTop: "var(--space-1)" }}>
+          {[product.brand, product.retailer].filter(Boolean).join(" · ")}
+          {" · "}
+          {product.rating.toFixed(1)}★ ({product.reviewCount.toLocaleString()})
+        </p>
+      </div>
+      <div className="text-right flex-shrink-0">
+        <p style={{ fontFamily: "var(--font-heading)", fontSize: "28px", lineHeight: 1 }}>
+          ${product.price.toFixed(2)}
+        </p>
+        {product.originalPrice != null && (
+          <p
+            className="text-neutral-700 line-through"
+            style={{ fontSize: "13px", marginTop: "var(--space-1)" }}
+          >
+            ${product.originalPrice.toFixed(2)}
           </p>
-          <h2 className="text-lg font-bold leading-snug mb-1 truncate" style={{ color: "#3d2000" }}>
-            {product.name}
-          </h2>
-          <p className="text-sm mb-2" style={{ color: "#7c4a00" }}>
-            {[product.brand, product.retailer].filter(Boolean).join(" · ")}
-          </p>
-          <div className="flex items-center gap-3">
-            <Stars rating={product.rating} />
-            <span className="text-xs" style={{ color: "#a16207" }}>
-              ({product.reviewCount.toLocaleString()} reviews)
-            </span>
-          </div>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-2xl font-extrabold" style={{ color: "#e87d00" }}>
-            ${product.price.toFixed(2)}
-          </p>
-          {product.originalPrice && (
-            <p className="text-sm line-through" style={{ color: "#a16207" }}>
-              ${product.originalPrice.toFixed(2)}
-            </p>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

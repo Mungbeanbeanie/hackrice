@@ -76,3 +76,29 @@ Best-active-coupon lookup by retailer, via CouponAPI.org (no retailer status req
 - [ ] `backend/app/coupons/selector.py` — given a store's `CouponOffer`s, return the single best currently-active one: filter `expires_at` in the past; ranking the rest is not a simple discount-amount sort (see flagged gap above) — likely "most recently verified" as primary signal, discount-magnitude parsing as a secondary refinement if it proves reliable enough. Depends only on the normalized model, buildable regardless of the `client.py` blocker.
 - [ ] `backend/app/routes/coupons.py` — `GET /api/coupons?store={name}`, looks up the best active coupon for a retailer on demand. Should cache per-store results (via `cache.py`) regardless of whether the underlying model is live-API or local-DB, to avoid redundant paid lookups/queries for popular retailers.
 - [ ] `backend/app/main.py` — wire `coupons.router` in (extends Phase 0 file)
+
+## Phase 10: Organic Design System (Frontend Redesign)
+Ported from `frontend/design_handoff_nectarly_production/` (design reference bundle — HTML prototypes + token sheet, not production code; kept in the repo as reference, excluded from lint/typecheck/build via `eslint.config.js`/`tsconfig.json` scoping). Replaces the honey-gradient placeholder UI with the Organic design system (cream ground, terracotta + sage accents, Caprasimo/Figtree) and adds three new marketing/account surfaces. **Frontend-only pass** — see Phase 11 for the backend data-contract catch-up this depends on.
+- [x] `frontend/src/index.css` — Organic `@theme` tokens (color ramps, radius, shadow, fonts), keyframes (`riseIn`/`softIn`/`bob`/`sweep`/`hopSpin`/`hopShadow`); deleted all honey-theme tokens/classes
+- [x] `frontend/package.json` — `+ lucide-react` (icon set, stroke-width 2.75 per design guide)
+- [x] `frontend/src/api/client.ts` — new `Product`/`SearchResponse` types (`group`/`verdict`/`rationale`/`short` fields per the handoff's data-contract section) plus a client-side adapter (`adaptSearchResponse`) that stubs those fields over the *existing* `/api/search` response (`tiers` → `groups` 1:1 mapping, `direction`-less verdict heuristic, templated rationale). Also added `requestSignInCode`/`verifySignInCode` against the existing Phase 8 `/api/auth/*` routes.
+- [x] `frontend/src/components/SearchBar.tsx` — restyled; `hero`/`compact` variants for the landing page vs. app header; dropped the clear-x button (not in the design)
+- [x] `frontend/src/components/TargetProductCard.tsx` — restyled to the "reference product card" spec
+- [x] `frontend/src/components/ResultCard.tsx` — new; single candidate row (savings bar, match/rating chips, Compare/Buy), replaces the per-item render logic that lived in `AlternativeTierList.tsx`
+- [x] `frontend/src/components/AlternativeGroups.tsx` — new; renders the three semantic groups (`same_spec`/`same_job`/`clears_floor`) in fixed equivalence order, ranked by value within each. Replaces and deletes `AlternativeTierList.tsx`.
+- [x] `frontend/src/components/ComparisonTable.tsx` — new; side-by-side spec table across target + all candidates
+- [x] `frontend/src/components/SpecBreakdownModal.tsx` — rewritten; verdict chips (6-value) + `rationale` paragraph, replacing the old dead-verdict-logic version
+- [x] `frontend/src/components/LandingPage.tsx` — new; marketing surface (hero, three-things, extension teaser, footer)
+- [x] `frontend/src/components/SignInPage.tsx` — new; wired to the real Phase 8 `/api/auth/request-code` + `/api/auth/verify` routes. **Deviation from the design handoff**, flagged to user: the mockup's copy assumes a magic-link flow ("Email me a sign-in link"), but the backend is verification-code-based — added a second code-entry step and adjusted copy accordingly.
+- [x] `frontend/src/components/ExtensionPanel.tsx` — new; standalone panel only (surrounding browser-chrome mock is scaffolding, built inline in `App.tsx`'s `extension` screen)
+- [x] `frontend/src/App.tsx` — rewritten; `screen` (`landing`/`app`/`signin`/`extension`) × `appState` (`idle`/`loading`/`results`/`error`) × `view` (`ranked`/`table`) state machine (extends Phase 0 file)
+- [x] `frontend/eslint.config.js` — ignore `design_handoff_nectarly_production/**` (reference HTML/JS, not app code — was failing `npm run lint`)
+- ~~`frontend/src/components/AlternativeTierList.tsx`~~ — deleted, replaced by `AlternativeGroups.tsx` + `ResultCard.tsx`
+
+## Phase 11: Data Contract Backend Catch-up (not started)
+What Phase 10's client-side stub (`api/client.ts`'s `adaptSearchResponse`) is standing in for. Blocks removing that adapter.
+- [ ] `backend/app/models.py` — add `direction: Literal["higher_is_better", "lower_is_better", "neutral"]` to `SpecAttribute` (authored per-category like `weight_tier`); add `Group` enum (`same_spec`/`same_job`/`clears_floor`) replacing `Tier`
+- [ ] `backend/app/scoring/value.py` — tier assignment logic becomes group assignment (same thresholds, new labels); compute per-spec verdicts from numeric delta + `direction` (text specs: same/different via string match)
+- [ ] rationale generation — decided approach (asked user): deterministic template built from `spec_match`/`savings`/`quality`, not an LLM call. Location TBD — likely `scoring/value.py` alongside tier/group assignment, or a new `scoring/rationale.py` if the template grows non-trivial.
+- [ ] `backend/app/routes/search.py` — response shape changes from `tiers: {tier1,tier2,tier3}` to `groups: {same_spec,same_job,clears_floor}`; `WireProduct` gains `group`/`verdict`/`rationale`/`short`
+- [ ] `frontend/src/api/client.ts` — delete `adaptSearchResponse` and the legacy wire types once the backend ships the real shape

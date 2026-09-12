@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="_ds/organic-deea9dec-e635-4437-babb-25fbd97592a0/styles.css" />
+<script src="_ds/organic-deea9dec-e635-4437-babb-25fbd97592a0/_ds_bundle.js"></script>
+<style>
+  /* Organic tokens, inlined verbatim from _ds/organic-…/styles.css so the design
+     paints on the first streamed character; the linked sheet above is authoritative. */
+  :root {
+    --color-bg: #f5ead8;
+    --color-surface: #ebddc5;
+    --color-text: #201e1d;
+    --color-accent: #c67139;
+    --color-accent-2: #7a8a5e;
+    --color-divider: rgba(32, 30, 29, 0.16);
+    --color-neutral-100: #f9f4ed; --color-neutral-200: #eee7db; --color-neutral-300: #dcd3c4;
+    --color-neutral-400: #c0b6a5; --color-neutral-500: #a19786; --color-neutral-600: #82796a;
+    --color-neutral-700: #645c50; --color-neutral-800: #474238; --color-neutral-900: #2e2b25;
+    --color-accent-100: #fff2eb; --color-accent-200: #ffe1d0; --color-accent-300: #ffc6a5;
+    --color-accent-400: #f6a06b; --color-accent-500: #d67f48; --color-accent-600: #b2622d;
+    --color-accent-700: #8c491a; --color-accent-800: #643312; --color-accent-900: #402310;
+    --color-accent-2-100: #f0fae1; --color-accent-2-200: #e1eecc; --color-accent-2-300: #ccdbb2;
+    --color-accent-2-400: #aebf92; --color-accent-2-500: #8fa073; --color-accent-2-600: #728157;
+    --color-accent-2-700: #56633f; --color-accent-2-800: #3d472b; --color-accent-2-900: #272e1b;
+    --font-heading: "Caprasimo", system-ui, sans-serif;
+    --font-body: "Figtree", system-ui, sans-serif;
+    --space-1: 4.4px; --space-2: 8.8px; --space-3: 13.2px;
+    --space-4: 17.6px; --space-6: 26.4px; --space-8: 35.2px;
+    --radius-sm: 8px; --radius-md: 16px; --radius-lg: 28px;
+    --shadow-sm: 0 1px 2px rgba(46, 43, 37, 0.14);
+    --shadow-md: 0 3px 10px rgba(46, 43, 37, 0.16);
+    --shadow-lg: 0 12px 32px rgba(46, 43, 37, 0.22);
+  }
+  html, body { margin:0; padding:0; }
+  body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); font-weight: 400; letter-spacing: -0.015em; }
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  ::selection { background: var(--color-accent-200); }
+  input::placeholder { color: var(--color-neutral-600); }
+  input { font-family: var(--font-body); }
+  a { color: var(--color-accent-700); }
+  a:hover { color: var(--color-accent); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes softIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-7px) } }
+  @keyframes sweep { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+  @keyframes turn { to { transform: rotate(360deg) } }
+  /* Runs on a linear timing function — the uneven keyframe spacing IS the easing:
+     the drop leaves the ground slowly, peaks in angular speed mid-flight, then
+     slows again into the landing. Squash on take-off and touchdown. */
+  @keyframes hopSpin {
+    0%   { transform: translateY(0)     rotate(0deg)   scale(1, 1) }
+    8%   { transform: translateY(-10px) rotate(10deg)  scale(0.94, 1.07) }
+    20%  { transform: translateY(-22px) rotate(45deg)  scale(1, 1) }
+    35%  { transform: translateY(-29px) rotate(110deg) }
+    50%  { transform: translateY(-31px) rotate(180deg) }
+    65%  { transform: translateY(-29px) rotate(250deg) }
+    80%  { transform: translateY(-22px) rotate(315deg) scale(1, 1) }
+    92%  { transform: translateY(-10px) rotate(350deg) scale(1.06, 0.93) }
+    100% { transform: translateY(0)     rotate(360deg) scale(1, 1) }
+  }
+  @keyframes hopShadow {
+    0%, 100% { transform: scaleX(1);    opacity: 0.22 }
+    50%      { transform: scaleX(0.55); opacity: 0.07 }
+  }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:15px;line-height:1.55">
+
+<sc-if value="{{ onLanding }}" hint-placeholder-val="{{ true }}">
+<div>
+  <header style="position:sticky;top:0;z-index:20;background:var(--color-bg);backdropFilter:blur(14px);WebkitBackdropFilter:blur(14px);borderBottom:1px solid var(--color-divider)">
+    <div style="max-width:1160px;margin:0 auto;padding:14px clamp(20px, 4vw, 48px);display:flex;align-items:center;gap:var(--space-4)">
+      <div style="display:flex;align-items:center;gap:var(--space-2);margin-right:auto">
+        <div style="width:30px;height:35px;flex-shrink:0;animation:bob 3.4s ease-in-out infinite">
+          <dc-import name="HoneyDrop" hint-size="30px,35px"></dc-import>
+        </div>
+        <span style="font-family:var(--font-heading);font-size:23px;line-height:1;color:var(--color-accent-700)">nectarly</span>
+      </div>
+      <nav style="display:flex;align-items:center;gap:var(--space-1)">
+        <a href="#how" style="display:inline-flex;align-items:center;padding:var(--space-2) var(--space-3);border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;color:var(--color-text)" style-hover="background:var(--color-neutral-200);">How it works</a>
+        <a href="#extension" style="display:inline-flex;align-items:center;padding:var(--space-2) var(--space-3);border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;color:var(--color-text)" style-hover="background:var(--color-neutral-200);">Extension</a>
+        <button onClick="{{ goSignin }}" style="display:inline-flex;align-items:center;padding:var(--space-2) var(--space-3);border-radius:999px;border:1px solid var(--color-divider);background:transparent;font-family:var(--font-heading);font-size:14px;color:var(--color-text);cursor:pointer" style-hover="background:var(--color-neutral-200);">Sign in</button>
+      </nav>
+    </div>
+  </header>
+
+  <section style="max-width:1160px;margin:0 auto;padding:clamp(40px, 7vw, 88px) clamp(20px, 4vw, 48px) clamp(32px, 5vw, 64px);display:grid;grid-template-columns:repeat(auto-fit, minmax(440px, 1fr));gap:clamp(36px, 5vw, 64px);align-items:start">
+    <div style="animation:riseIn 0.6s ease both">
+      <span style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--color-accent-2-100);color:var(--color-accent-2-700);font-size:13px;font-weight:700;border:1px solid var(--color-accent-2-200)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+        Not another coupon extension
+      </span>
+      <h1 style="font-family:var(--font-heading);font-size:clamp(36px, 4.6vw, 62px);line-height:1.05;letter-spacing:-0.02em;margin:var(--space-4) 0 0">Pay for the product,<br />not the brand.</h1>
+      <p style="font-size:clamp(16px, 1.6vw, 19px);line-height:1.55;max-width:30em;margin:var(--space-4) 0 0;color:var(--color-neutral-800)">Paste any product link. Nectarly finds the versions that match it on specs, filters out the junk, and ranks what's left by what you actually get per dollar.</p>
+
+      <form onSubmit="{{ onSubmit }}" style="margin-top:var(--space-6);max-width:560px">
+        <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-2) var(--space-2) var(--space-4);border-radius:999px;background:var(--color-neutral-100);border:1px solid var(--color-divider);box-shadow:var(--shadow-md)">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+          <input value="{{ query }}" onChange="{{ onQueryChange }}" placeholder="Paste a link, name a product, or describe what you need" style="flex:1 1 0%;min-width:0;border:none;background:transparent;outline:none;font-size:15px;color:var(--color-text);padding:var(--space-2) 0;text-overflow:ellipsis" />
+          <button type="submit" style="display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:14.5px;line-height:1.2;cursor:pointer;flex-shrink:0;white-space:nowrap" style-hover="background:var(--color-accent-600);">
+            Find alternatives
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </button>
+        </div>
+      </form>
+      <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin-top:var(--space-3)">
+        <span style="font-size:13px;color:var(--color-neutral-700)">Try</span>
+        <sc-for list="{{ examples }}" as="ex" hint-placeholder-count="3">
+          <button onClick="{{ ex.onPick }}" style="padding:var(--space-1) var(--space-3);border-radius:999px;border:1px solid var(--color-divider);background:transparent;font-family:var(--font-body);font-size:13px;font-weight:600;color:var(--color-accent-700);cursor:pointer" style-hover="background:var(--color-accent-100);border-color:var(--color-accent-300);">{{ ex.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="position:relative;display:flex;align-items:flex-start;justify-content:center;padding-top:48.5px;animation:riseIn 0.7s ease 0.1s both">
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);width:min(400px, 92%);aspect-ratio:1;border-radius:999px;background:var(--color-accent-200)"></div>
+      <div style="position:absolute;top:4%;right:6%;width:120px;height:120px;border-radius:999px;background:var(--color-accent-2-200)"></div>
+      <div style="position:relative;width:min(392px, 100%);display:flex;flex-direction:column;gap:var(--space-3)">
+        <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-md);transform:rotate(-1.4deg)">
+          <p style="margin:0 0 var(--space-2);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">What you were buying</p>
+          <div style="display:flex;align-items:center;gap:var(--space-3)">
+            <div style="width:52px;height:52px;border-radius:var(--radius-md);flex-shrink:0;background:repeating-linear-gradient(45deg, var(--color-neutral-200) 0 5px, var(--color-neutral-100) 5px 10px);border:1px solid var(--color-divider)"></div>
+            <div style="flex:1 1 0%;min-width:0">
+              <p style="margin:0;font-size:14px;font-weight:700;line-height:1.3">Purple Harmony Pillow</p>
+              <p style="margin:2px 0 0;font-size:13px;color:var(--color-neutral-700)">Talalay latex · 6.5 in loft</p>
+            </div>
+            <p style="margin:0;font-family:var(--font-heading);font-size:24px;line-height:1;color:var(--color-text)">$159</p>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:var(--space-2);padding-left:var(--space-6)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg>
+          <span style="font-size:13px;font-weight:700;color:var(--color-accent-700)">96% spec match found</span>
+        </div>
+
+        <div style="background:var(--color-accent-2-100);border:1px solid var(--color-accent-2-300);border-radius:var(--radius-lg);padding:var(--space-4);box-shadow:var(--shadow-lg);transform:rotate(1.1deg)">
+          <p style="margin:0 0 var(--space-2);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-2-700)">What you'll buy instead</p>
+          <div style="display:flex;align-items:center;gap:var(--space-3)">
+            <div style="width:52px;height:52px;border-radius:var(--radius-md);flex-shrink:0;background:repeating-linear-gradient(45deg, var(--color-accent-2-200) 0 5px, var(--color-accent-2-100) 5px 10px);border:1px solid var(--color-accent-2-300)"></div>
+            <div style="flex:1 1 0%;min-width:0">
+              <p style="margin:0;font-size:14px;font-weight:700;line-height:1.3">Gel Memory Foam Contour</p>
+              <p style="margin:2px 0 0;font-size:13px;color:var(--color-accent-2-700)">Same loft · same cover · 4.4★ (8,912)</p>
+            </div>
+            <p style="margin:0;font-family:var(--font-heading);font-size:24px;line-height:1;color:var(--color-accent-2-700)">$42</p>
+          </div>
+          <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-accent-2-300);display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-2)">
+            <span style="font-size:13px;font-weight:600;color:var(--color-accent-2-700)">You keep</span>
+            <span style="font-family:var(--font-heading);font-size:27px;line-height:1;color:var(--color-accent-2-700)">$117.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" style="max-width:1160px;margin:0 auto;padding:clamp(36px, 5vw, 72px) clamp(20px, 4vw, 48px);border-top:1px solid var(--color-divider)">
+    <h2 style="font-family:var(--font-heading);font-size:clamp(28px, 3.6vw, 40px);line-height:1.1;margin:0 0 var(--space-2);max-width:14em">Three things every other shopping tool skips.</h2>
+    <p style="margin:0 0 clamp(28px, 3.5vw, 44px);max-width:44em;color:var(--color-neutral-800)">Coupon extensions optimise the last 5% of a price you already agreed to. Nectarly questions the price.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:clamp(16px, 2vw, 26px)">
+      <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+        <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:clamp(20px, 2.4vw, 28px)">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;background:var(--color-accent-200);color:var(--color-accent-800);font-family:var(--font-heading);font-size:17px">{{ s.n }}</span>
+          <h3 style="font-family:var(--font-heading);font-size:21px;line-height:1.2;margin:var(--space-4) 0 var(--space-2)">{{ s.title }}</h3>
+          <p style="margin:0;font-size:14.5px;color:var(--color-neutral-800)">{{ s.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="extension" style="max-width:1160px;margin:0 auto;padding:clamp(36px, 5vw, 72px) clamp(20px, 4vw, 48px);border-top:1px solid var(--color-divider);display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:clamp(32px, 4vw, 56px);align-items:center">
+    <div>
+      <h2 style="font-family:var(--font-heading);font-size:clamp(28px, 3.6vw, 40px);line-height:1.1;margin:0 0 var(--space-3);max-width:12em">It comes with you.</h2>
+      <p style="margin:0 0 var(--space-6);max-width:34em;color:var(--color-neutral-800)">The extension wakes up on any product page, reads the listing, and puts the equivalents one click away — before you've added anything to a cart.</p>
+      <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-6)">
+        <sc-for list="{{ extPoints }}" as="pt" hint-placeholder-count="3">
+          <div style="display:flex;align-items:flex-start;gap:var(--space-3)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-2-600)" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:var(--space-1)"><path d="M20 6 9 17l-5-5"></path></svg>
+            <span style="font-size:14.5px;color:var(--color-neutral-800)">{{ pt.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <button onClick="{{ goExtension }}" style="display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-6);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:15px;cursor:pointer" style-hover="background:var(--color-accent-600);">
+        See the panel
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+      </button>
+    </div>
+    <div style="display:flex;justify-content:center">
+      <div style="width:100%;max-width:390px;background:var(--color-surface);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:var(--space-3);box-shadow:var(--shadow-lg)">
+        <div style="display:flex;align-items:center;gap:var(--space-1);padding:0 var(--space-1) var(--space-3)">
+          <span style="width:10px;height:10px;border-radius:999px;background:var(--color-neutral-400)"></span>
+          <span style="width:10px;height:10px;border-radius:999px;background:var(--color-neutral-400)"></span>
+          <span style="width:10px;height:10px;border-radius:999px;background:var(--color-neutral-400)"></span>
+          <span style="margin-left:var(--space-2);flex:1 1 0%;height:20px;border-radius:999px;background:var(--color-neutral-200);display:flex;align-items:center;padding:0 var(--space-2);font-size:10.5px;color:var(--color-neutral-600);overflow:hidden;white-space:nowrap">purple.com/pillows/harmony</span>
+        </div>
+        <div style="background:var(--color-neutral-100);border-radius:var(--radius-md);padding:var(--space-4)">
+          <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3)">
+            <div style="width:20px;height:23px;flex-shrink:0">
+              <dc-import name="HoneyDrop" hint-size="20px,23px"></dc-import>
+            </div>
+            <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent-700);margin-right:auto">nectarly</span>
+            <span style="font-size:11px;font-weight:700;padding:var(--space-1) var(--space-2);border-radius:999px;background:var(--color-accent-2-100);color:var(--color-accent-2-700)">4 found</span>
+          </div>
+          <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--color-neutral-700)">Best equivalent</p>
+          <p style="margin:0;font-size:14px;font-weight:700;line-height:1.3">Gel Memory Foam Contour Pillow</p>
+          <div style="display:flex;align-items:baseline;gap:var(--space-2);margin-top:var(--space-2)">
+            <span style="font-family:var(--font-heading);font-size:28px;line-height:1;color:var(--color-accent-2-700)">$42</span>
+            <span style="font-size:13px;text-decoration:line-through;color:var(--color-neutral-700)">$159</span>
+            <span style="margin-left:auto;font-size:12px;font-weight:700;color:var(--color-accent-2-700)">96% match</span>
+          </div>
+          <div style="height:8px;border-radius:999px;background:var(--color-accent-2-200);margin-top:var(--space-3);overflow:hidden">
+            <div style="width:26%;height:100%;border-radius:999px;background:var(--color-accent)"></div>
+          </div>
+          <p style="margin:var(--space-1) 0 0;font-size:12px;color:var(--color-neutral-700)">You'd pay 26% of the original</p>
+          <button onClick="{{ goExtension }}" style="width:100%;margin-top:var(--space-3);padding:var(--space-2);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:14px;cursor:pointer" style-hover="background:var(--color-accent-600);">Compare all 4</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid var(--color-divider)">
+    <div style="max-width:1160px;margin:0 auto;padding:32px clamp(20px, 4vw, 48px);display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-4)">
+      <div style="display:flex;align-items:center;gap:var(--space-2);margin-right:auto">
+        <div style="width:20px;height:23px;flex-shrink:0">
+          <dc-import name="HoneyDrop" hint-size="20px,23px"></dc-import>
+        </div>
+        <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-700)">nectarly</span>
+        <span style="font-size:13px;color:var(--color-neutral-700)">find sweeter deals</span>
+      </div>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSf0WtkQRAguepMWqBOKYo-e3HQR2Ed6yip4oglBy49RQEGAkg/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" style="font-size:13.5px;font-weight:600;text-decoration:none">Send feedback</a>
+    </div>
+  </footer>
+</div>
+</sc-if>
+
+<sc-if value="{{ onApp }}" hint-placeholder-val="{{ false }}">
+<div>
+  <header style="position:sticky;top:0;z-index:20;background:var(--color-bg);backdropFilter:blur(14px);WebkitBackdropFilter:blur(14px);borderBottom:1px solid var(--color-divider)">
+    <div style="max-width:1240px;margin:0 auto;padding:12px clamp(16px, 3vw, 36px);display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap">
+      <button onClick="{{ goLanding }}" style="display:flex;align-items:center;gap:var(--space-2);background:none;border:none;padding:0;cursor:pointer">
+        <div style="width:24px;height:28px;flex-shrink:0">
+          <dc-import name="HoneyDrop" hint-size="24px,28px"></dc-import>
+        </div>
+        <span style="font-family:var(--font-heading);font-size:19px;color:var(--color-accent-700)">nectarly</span>
+      </button>
+      <form onSubmit="{{ onSubmit }}" style="flex:1 1 280px;min-width:0">
+        <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-1) var(--space-1) var(--space-4);border-radius:999px;background:var(--color-neutral-100);border:1px solid var(--color-divider)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+          <input value="{{ query }}" onChange="{{ onQueryChange }}" placeholder="Paste a link, name a product, or describe what you need" style="flex:1 1 0%;min-width:0;border:none;background:transparent;outline:none;font-size:14.5px;color:var(--color-text);padding:var(--space-2) 0" />
+          <button type="submit" style="padding:var(--space-2) var(--space-4);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:14px;cursor:pointer;flex-shrink:0" style-hover="background:var(--color-accent-600);">Search</button>
+        </div>
+      </form>
+      <button onClick="{{ goSignin }}" style="display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-2) var(--space-1) var(--space-3);border-radius:999px;border:1px solid var(--color-divider);background:transparent;font-family:var(--font-body);font-size:13.5px;font-weight:600;color:var(--color-text);cursor:pointer;flex-shrink:0" style-hover="background:var(--color-neutral-200);">
+        Sign in
+        <span style="width:26px;height:26px;border-radius:999px;background:var(--color-accent-200);display:inline-flex;align-items:center;justify-content:center;color:var(--color-accent-800)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <main style="max-width:1240px;margin:0 auto;padding:clamp(20px, 3vw, 36px) clamp(16px, 3vw, 36px) 80px">
+
+    <sc-if value="{{ isIdle }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:620px;margin:clamp(40px, 8vh, 90px) auto;text-align:center;animation:softIn 0.4s ease both">
+        <div style="width:76px;height:88px;margin:0 auto;animation:bob 3.4s ease-in-out infinite">
+          <dc-import name="HoneyDrop" hint-size="76px,88px"></dc-import>
+        </div>
+        <h2 style="font-family:var(--font-heading);font-size:clamp(26px, 3.4vw, 34px);line-height:1.14;margin:var(--space-6) 0 var(--space-2)">Show us what you were about to buy.</h2>
+        <p style="margin:0 auto var(--space-6);max-width:38em;color:var(--color-neutral-800)">A link, a product name, or a plain description of the job it has to do. All three work — we figure out which one you gave us.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:var(--space-3);text-align:left">
+          <sc-for list="{{ modes }}" as="m" hint-placeholder-count="3">
+            <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:var(--space-4)">
+              <p style="margin:0;font-size:14px;font-weight:700">{{ m.label }}</p>
+              <p style="margin:var(--space-1) 0 0;font-size:12.5px;color:var(--color-neutral-700)">{{ m.sub }}</p>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:softIn 0.3s ease both">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-3);padding:var(--space-6) 0 var(--space-8)">
+          <div style="height:92px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
+            <div style="width:46px;height:54px;transform-origin:50% 50%;animation:hopSpin 1.15s linear infinite">
+              <dc-import name="HoneyDrop" hint-size="46px,54px"></dc-import>
+            </div>
+            <div style="width:34px;height:5px;margin-top:var(--space-1);border-radius:999px;background:var(--color-accent-800);animation:hopShadow 1.15s linear infinite"></div>
+          </div>
+          <span style="font-size:14.5px;font-weight:600;color:var(--color-accent-700)">{{ loadingLabel }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <div style="height:104px;border-radius:var(--radius-lg);background:linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%);background-size:200% 100%;animation:sweep 1.5s ease infinite"></div>
+          <div style="height:104px;border-radius:var(--radius-lg);opacity:0.75;background:linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%);background-size:200% 100%;animation:sweep 1.5s ease 0.15s infinite"></div>
+          <div style="height:104px;border-radius:var(--radius-lg);opacity:0.5;background:linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%);background-size:200% 100%;animation:sweep 1.5s ease 0.3s infinite"></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:520px;margin:clamp(40px, 8vh, 80px) auto;text-align:center;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:var(--space-8);box-shadow:var(--shadow-sm);animation:riseIn 0.4s ease both">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:999px;background:var(--color-accent-200);color:var(--color-accent-800)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><circle cx="12" cy="12" r="10"></circle></svg>
+        </span>
+        <h2 style="font-family:var(--font-heading);font-size:25px;line-height:1.2;margin:var(--space-4) 0 var(--space-2)">We couldn't reach the catalogue.</h2>
+        <p style="margin:0 0 var(--space-2);color:var(--color-neutral-800)">Nothing's wrong with your search — the product feed timed out. Try again in a moment.</p>
+        <p style="margin:0 0 var(--space-6);font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:12.5px;color:var(--color-neutral-600)">{{ errorMessage }}</p>
+        <button onClick="{{ retry }}" style="padding:var(--space-3) var(--space-6);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:14px;cursor:pointer" style-hover="background:var(--color-accent-600);">Try again</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isResults }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-wrap:wrap;gap:clamp(20px, 2.6vw, 34px);align-items:flex-start;animation:softIn 0.35s ease both">
+
+        <div style="flex:1 1 460px;min-width:0;display:flex;flex-direction:column;gap:var(--space-6)">
+
+          <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:clamp(16px, 2vw, 22px);display:flex;gap:var(--space-4);align-items:center;flex-wrap:wrap">
+            <div style="width:62px;height:62px;border-radius:var(--radius-md);flex-shrink:0;background:repeating-linear-gradient(45deg, var(--color-neutral-200) 0 5px, var(--color-neutral-100) 5px 10px);border:1px solid var(--color-divider)"></div>
+            <div style="flex:1 1 200px;min-width:0">
+              <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Your reference product</p>
+              <h2 style="font-family:var(--font-heading);font-size:20px;line-height:1.2;margin:0">{{ target.name }}</h2>
+              <p style="margin:var(--space-1) 0 0;font-size:13.5px;color:var(--color-neutral-700)">{{ target.meta }} · {{ target.ratingLabel }}</p>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <p style="margin:0;font-family:var(--font-heading);font-size:28px;line-height:1;color:var(--color-text)">{{ target.priceLabel }}</p>
+              <p style="margin:var(--space-1) 0 0;font-size:13px;text-decoration:line-through;color:var(--color-neutral-700)">{{ target.originalLabel }}</p>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+            <h2 style="font-family:var(--font-heading);font-size:clamp(22px, 2.4vw, 27px);line-height:1.15;margin:0;margin-right:auto">{{ resultsHeading }}</h2>
+            <div style="display:flex;gap:var(--space-1);padding:var(--space-1);border-radius:999px;background:var(--color-surface);border:1px solid var(--color-divider)">
+              <button onClick="{{ setRanked }}" style="{{ rankedTabStyle }}">Ranked</button>
+              <button onClick="{{ setTable }}" style="{{ tableTabStyle }}">Side by side</button>
+            </div>
+          </div>
+
+          <sc-if value="{{ viewRanked }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:var(--space-6)">
+              <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+                <section>
+                  <div style="margin-bottom:var(--space-3)">
+                    <h3 style="font-family:var(--font-heading);font-size:17px;line-height:1.25;margin:0;display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+                      <span style="width:9px;height:9px;border-radius:999px;flex-shrink:0;background:var(--color-accent)"></span>
+                      {{ g.title }}
+                      <span style="font-family:var(--font-body);font-size:12px;font-weight:700;padding:2px var(--space-2);border-radius:999px;background:var(--color-surface);color:var(--color-neutral-700)">{{ g.count }}</span>
+                    </h3>
+                    <p style="margin:var(--space-1) 0 0 var(--space-4);font-size:13.5px;color:var(--color-neutral-700)">{{ g.description }}</p>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+                    <sc-for list="{{ g.products }}" as="p" hint-placeholder-count="2">
+                      <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:clamp(14px, 1.8vw, 20px);box-shadow:var(--shadow-sm);transition:box-shadow 0.18s ease, transform 0.18s ease" style-hover="box-shadow:var(--shadow-md);transform:translateY(-2px);">
+                        <div style="display:flex;gap:var(--space-3);align-items:flex-start">
+                          <div style="width:68px;height:68px;border-radius:var(--radius-md);flex-shrink:0;background:repeating-linear-gradient(45deg, var(--color-neutral-200) 0 5px, var(--color-neutral-100) 5px 10px);border:1px solid var(--color-divider)"></div>
+                          <div style="flex:1 1 0%;min-width:0">
+                            <div style="display:flex;gap:var(--space-3);align-items:flex-start;flex-wrap:wrap">
+                              <div style="flex:1 1 190px;min-width:0">
+                                <h4 style="font-family:var(--font-body);font-size:15.5px;font-weight:700;line-height:1.3;margin:0">{{ p.name }}</h4>
+                                <p style="margin:var(--space-1) 0 0;font-size:13px;color:var(--color-neutral-700)">{{ p.meta }}</p>
+                              </div>
+                              <div style="text-align:right;flex-shrink:0">
+                                <p style="margin:0;font-family:var(--font-heading);font-size:25px;line-height:1;color:var(--color-text)">{{ p.priceLabel }}</p>
+                                <p style="margin:var(--space-1) 0 0;font-size:13px;font-weight:700;color:var(--color-accent-2-700)">{{ p.savingsLabel }}</p>
+                              </div>
+                            </div>
+
+                            <div style="margin-top:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
+                              <div style="flex:1 1 0%;height:9px;border-radius:999px;background:var(--color-accent-2-200);overflow:hidden">
+                                <div style="{{ p.barStyle }}"></div>
+                              </div>
+                              <span style="font-size:12px;font-weight:700;color:var(--color-neutral-700);flex-shrink:0">{{ p.sharePct }}</span>
+                            </div>
+
+                            <div style="margin-top:var(--space-3);display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap">
+                              <span style="display:inline-flex;align-items:baseline;gap:var(--space-1);padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--color-accent-100);border:1px solid var(--color-accent-200)">
+                                <span style="font-size:13px;font-weight:700;color:var(--color-accent-800)">{{ p.matchLabel }}</span>
+                                <span style="font-size:11.5px;color:var(--color-accent-700)">match</span>
+                              </span>
+                              <span style="display:inline-flex;align-items:baseline;gap:var(--space-1);padding:var(--space-1) var(--space-3);border-radius:999px;background:var(--color-surface)">
+                                <span style="font-size:13px;font-weight:700">{{ p.ratingLabel }}</span>
+                                <span style="font-size:11.5px;color:var(--color-neutral-700)">{{ p.reviewLabel }} reviews</span>
+                              </span>
+                              <div style="margin-left:auto;display:flex;gap:var(--space-1);flex-shrink:0">
+                                <button onClick="{{ p.onCompare }}" style="padding:var(--space-2) var(--space-3);border-radius:999px;border:1px solid var(--color-divider);background:transparent;font-family:var(--font-heading);font-size:13.5px;color:var(--color-text);cursor:pointer" style-hover="background:var(--color-neutral-200);">Compare</button>
+                                <a href="{{ p.url }}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-2) var(--space-3);border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:13.5px;text-decoration:none" style-hover="background:var(--color-accent-600);color:var(--color-bg);">
+                                  Buy
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </section>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ viewTable }}" hint-placeholder-val="{{ false }}">
+            <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm)">
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13.5px;min-width:660px">
+                  <thead>
+                    <tr style="background:var(--color-surface)">
+                      <th style="text-align:left;padding:var(--space-3) var(--space-4);font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700);width:150px">Spec</th>
+                      <sc-for list="{{ columns }}" as="col" hint-placeholder-count="4">
+                        <th style="text-align:left;padding:var(--space-3) var(--space-4);vertical-align:top;border-left:1px solid var(--color-divider)">
+                          <p style="margin:0;font-family:var(--font-body);font-size:13px;font-weight:700;line-height:1.3">{{ col.short }}</p>
+                          <p style="margin:var(--space-1) 0 0;font-family:var(--font-heading);font-size:20px;line-height:1">{{ col.priceLabel }}</p>
+                          <p style="margin:var(--space-1) 0 0;font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--color-accent-2-700)">{{ col.savingsLabel }}</p>
+                        </th>
+                      </sc-for>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <sc-for list="{{ tableRows }}" as="row" hint-placeholder-count="6">
+                      <tr style="border-top:1px solid var(--color-divider)">
+                        <td style="padding:var(--space-3) var(--space-4);font-size:12.5px;font-weight:700;color:var(--color-neutral-700)">{{ row.spec }}</td>
+                        <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="4">
+                          <td style="padding:var(--space-3) var(--space-4);border-left:1px solid var(--color-divider)">{{ cell.value }}</td>
+                        </sc-for>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <aside style="flex:1 1 285px;min-width:0;max-width:360px;display:flex;flex-direction:column;gap:var(--space-4);position:sticky;top:88px">
+          <div style="background:var(--color-accent-2-100);border:1px solid var(--color-accent-2-300);border-radius:var(--radius-lg);padding:var(--space-6)">
+            <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-2-700)">Best equivalent</p>
+            <p style="margin:0;font-family:var(--font-heading);font-size:clamp(36px, 4vw, 44px);line-height:1;color:var(--color-accent-2-700)">{{ best.savingsLabel }}</p>
+            <p style="margin:var(--space-2) 0 0;font-size:14px;color:var(--color-accent-2-700)">{{ best.summary }}</p>
+            <div style="margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid var(--color-accent-2-300)">
+              <p style="margin:0;font-size:13.5px;font-weight:700;line-height:1.35">{{ best.name }}</p>
+              <p style="margin:var(--space-1) 0 0;font-size:12.5px;color:var(--color-accent-2-700)">{{ best.meta }}</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</sc-if>
+
+<sc-if value="{{ onSignin }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr))">
+  <div style="display:flex;align-items:center;justify-content:center;padding:clamp(32px, 6vw, 72px)">
+    <div style="width:100%;max-width:380px;animation:riseIn 0.5s ease both">
+      <button onClick="{{ goLanding }}" style="display:flex;align-items:center;gap:var(--space-2);background:none;border:none;padding:0;cursor:pointer;margin-bottom:var(--space-8)">
+        <div style="width:26px;height:30px;flex-shrink:0">
+          <dc-import name="HoneyDrop" hint-size="26px,30px"></dc-import>
+        </div>
+        <span style="font-family:var(--font-heading);font-size:21px;color:var(--color-accent-700)">nectarly</span>
+      </button>
+      <h1 style="font-family:var(--font-heading);font-size:clamp(30px, 3.6vw, 38px);line-height:1.12;margin:0 0 var(--space-2)">Keep what you found.</h1>
+      <p style="margin:0 0 var(--space-6);color:var(--color-neutral-800)">Sign in to save comparisons, track price moves, and pick up a search where you left it.</p>
+      <div style="margin-bottom:var(--space-4)">
+        <label for="email" style="display:block;font-size:12.5px;font-weight:600;margin-bottom:var(--space-1);color:var(--color-neutral-800)">Email address</label>
+        <input id="email" type="email" placeholder="you@example.com" style="width:100%;padding:var(--space-3) var(--space-4);border-radius:999px;border:1px solid var(--color-divider);background:var(--color-neutral-100);font-size:15px;color:var(--color-text);outline:none" />
+      </div>
+      <button onClick="{{ goApp }}" style="width:100%;padding:var(--space-3);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:15px;cursor:pointer" style-hover="background:var(--color-accent-600);">Email me a sign-in link</button>
+      <p style="margin:var(--space-3) 0 0;font-size:12.5px;text-align:center;color:var(--color-neutral-700)">No password. We send a link that signs you in for 30 days.</p>
+      <div style="display:flex;align-items:center;gap:var(--space-3);margin:var(--space-6) 0">
+        <span style="flex:1 1 0%;height:1px;background:var(--color-divider)"></span>
+        <span style="font-size:12px;color:var(--color-neutral-600)">or</span>
+        <span style="flex:1 1 0%;height:1px;background:var(--color-divider)"></span>
+      </div>
+      <button onClick="{{ goApp }}" style="width:100%;padding:var(--space-3);border-radius:999px;border:1px solid var(--color-divider);background:transparent;font-family:var(--font-heading);font-size:14.5px;color:var(--color-text);cursor:pointer" style-hover="background:var(--color-neutral-200);">Continue without an account</button>
+    </div>
+  </div>
+  <div style="background:var(--color-surface);display:flex;align-items:center;justify-content:center;padding:clamp(32px, 6vw, 72px);position:relative;overflow:hidden">
+    <div style="position:absolute;width:430px;height:430px;border-radius:999px;background:var(--color-accent-200);top:-90px;right:-120px"></div>
+    <div style="position:absolute;width:220px;height:220px;border-radius:999px;background:var(--color-accent-2-200);bottom:-60px;left:-50px"></div>
+    <blockquote style="position:relative;margin:0;max-width:400px">
+      <p style="font-family:var(--font-heading);font-size:clamp(24px, 2.8vw, 31px);line-height:1.25;margin:0 0 var(--space-4)">"Four searches in, it had paid for a year of anything I'd ever pay it for."</p>
+      <footer style="font-size:14px;color:var(--color-neutral-700)">Saved $412 across 4 searches — average nectarly user, first month</footer>
+    </blockquote>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ onExtension }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:var(--color-neutral-200);padding:clamp(16px, 3vw, 40px);display:flex;flex-direction:column;gap:var(--space-4);align-items:center">
+  <div style="width:100%;max-width:1180px;display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+    <button onClick="{{ goLanding }}" style="display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-radius:999px;border:1px solid var(--color-divider);background:var(--color-neutral-100);font-family:var(--font-heading);font-size:13.5px;color:var(--color-text);cursor:pointer" style-hover="background:var(--color-surface);">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+      Back
+    </button>
+    <p style="margin:0;font-size:14px;color:var(--color-neutral-700)">The extension panel, in place on a retailer's product page.</p>
+  </div>
+
+  <div style="width:100%;max-width:1180px;flex:1 1 0%;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);background:var(--color-surface);border-bottom:1px solid var(--color-divider)">
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-neutral-400)"></span>
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-neutral-400)"></span>
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-neutral-400)"></span>
+      <span style="margin-left:var(--space-2);flex:1 1 0%;max-width:460px;height:26px;border-radius:999px;background:var(--color-neutral-100);display:flex;align-items:center;padding:0 var(--space-3);font-size:12px;color:var(--color-neutral-600);overflow:hidden;white-space:nowrap">purple.com/pillows/harmony</span>
+      <span style="width:26px;height:30px;flex-shrink:0;margin-left:var(--space-1)">
+        <dc-import name="HoneyDrop" hint-size="26px,30px"></dc-import>
+      </span>
+    </div>
+
+    <div style="flex:1 1 0%;display:flex;flex-wrap:wrap;gap:clamp(20px, 3vw, 44px);padding:clamp(20px, 3vw, 44px);align-items:flex-start">
+      <div style="flex:1 1 300px;min-width:0;opacity:0.5">
+        <div style="width:100%;aspect-ratio:4 / 3;border-radius:var(--radius-lg);background:repeating-linear-gradient(45deg, var(--color-neutral-200) 0 8px, var(--color-neutral-100) 8px 16px);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:12px;color:var(--color-neutral-600)">retailer product photo</div>
+        <div style="height:26px;width:70%;border-radius:999px;background:var(--color-neutral-200);margin-top:var(--space-4)"></div>
+        <div style="height:16px;width:45%;border-radius:999px;background:var(--color-neutral-200);margin-top:var(--space-3)"></div>
+        <div style="height:44px;width:180px;border-radius:999px;background:var(--color-neutral-300);margin-top:var(--space-6)"></div>
+      </div>
+
+      <div style="flex:0 1 386px;width:100%;max-width:386px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:var(--space-4);animation:riseIn 0.5s ease both">
+        <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-4)">
+          <div style="width:22px;height:26px;flex-shrink:0;animation:bob 3.4s ease-in-out infinite">
+            <dc-import name="HoneyDrop" hint-size="22px,26px"></dc-import>
+          </div>
+          <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent-700);margin-right:auto">nectarly</span>
+          <button onClick="{{ goLanding }}" style="width:28px;height:28px;border:none;border-radius:999px;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--color-neutral-600)" style-hover="background:var(--color-surface);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
+
+        <div style="background:var(--color-accent-2-100);border:1px solid var(--color-accent-2-300);border-radius:var(--radius-md);padding:var(--space-4)">
+          <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-2-700)">You could keep</p>
+          <p style="margin:0;font-family:var(--font-heading);font-size:40px;line-height:1;color:var(--color-accent-2-700)">$117</p>
+          <p style="margin:var(--space-1) 0 0;font-size:13px;color:var(--color-accent-2-700)">on a 96% spec match, rated 4.4 across 8,912 reviews</p>
+        </div>
+
+        <p style="margin:var(--space-4) 0 var(--space-2);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Equivalents found</p>
+        <div style="display:flex;flex-direction:column;gap:var(--space-2)">
+          <sc-for list="{{ extList }}" as="p" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-3);border-radius:var(--radius-md);border:1px solid var(--color-divider)">
+              <div style="width:36px;height:36px;border-radius:var(--radius-sm);flex-shrink:0;background:repeating-linear-gradient(45deg, var(--color-neutral-200) 0 4px, var(--color-neutral-100) 4px 8px);border:1px solid var(--color-divider)"></div>
+              <div style="flex:1 1 0%;min-width:0">
+                <p style="margin:0;font-size:13px;font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.short }}</p>
+                <p style="margin:2px 0 0;font-size:11.5px;color:var(--color-neutral-700)">{{ p.matchLabel }} match · {{ p.ratingLabel }}★</p>
+              </div>
+              <p style="margin:0;font-family:var(--font-heading);font-size:17px;line-height:1;flex-shrink:0">{{ p.priceLabel }}</p>
+            </div>
+          </sc-for>
+        </div>
+
+        <button onClick="{{ goResults }}" style="width:100%;margin-top:var(--space-4);padding:var(--space-3);border:none;border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:14.5px;cursor:pointer" style-hover="background:var(--color-accent-600);">Open full comparison</button>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ compareOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ onBackdrop }}" style="position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:clamp(12px, 3vw, 32px);background:rgba(46, 43, 37, 0.55);backdropFilter:blur(5px);WebkitBackdropFilter:blur(5px);animation:softIn 0.22s ease both">
+    <div style="width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;background:var(--color-bg);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;animation:riseIn 0.3s ease both">
+      <div style="display:flex;align-items:flex-start;gap:var(--space-4);padding:clamp(20px, 2.6vw, 28px);border-bottom:1px solid var(--color-divider)">
+        <div style="flex:1 1 0%;min-width:0">
+          <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Spec by spec</p>
+          <h2 style="font-family:var(--font-heading);font-size:clamp(21px, 2.4vw, 26px);line-height:1.2;margin:0">{{ compare.name }}</h2>
+        </div>
+        <button onClick="{{ closeCompare }}" style="width:36px;height:36px;flex-shrink:0;border:none;border-radius:999px;background:var(--color-surface);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:var(--color-text)" style-hover="background:var(--color-neutral-300);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:var(--space-3);padding:clamp(16px, 2.2vw, 22px) clamp(20px, 2.6vw, 28px);border-bottom:1px solid var(--color-divider)">
+        <div style="background:var(--color-surface);border-radius:var(--radius-md);padding:var(--space-3)">
+          <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-700)">Original</p>
+          <p style="margin:0;font-family:var(--font-heading);font-size:26px;line-height:1">{{ target.priceLabel }}</p>
+        </div>
+        <div style="background:var(--color-accent-2-100);border:1px solid var(--color-accent-2-300);border-radius:var(--radius-md);padding:var(--space-3)">
+          <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-2-700)">This one</p>
+          <p style="margin:0;font-family:var(--font-heading);font-size:26px;line-height:1;color:var(--color-accent-2-700)">{{ compare.priceLabel }}</p>
+        </div>
+        <div style="background:var(--color-accent-2-100);border:1px solid var(--color-accent-2-300);border-radius:var(--radius-md);padding:var(--space-3)">
+          <p style="margin:0 0 var(--space-1);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-accent-2-700)">You keep</p>
+          <p style="margin:0;font-family:var(--font-heading);font-size:26px;line-height:1;color:var(--color-accent-2-700)">{{ compare.saveLabel }}</p>
+          <p style="margin:var(--space-1) 0 0;font-size:12px;color:var(--color-accent-2-700)">{{ compare.savePctLabel }}</p>
+        </div>
+      </div>
+
+      <div style="overflow-y:auto;flex:1 1 0%;padding:clamp(16px, 2.2vw, 24px) clamp(20px, 2.6vw, 28px)">
+        <p style="margin:0 0 var(--space-4);font-size:14px;line-height:1.55;color:var(--color-neutral-800)">{{ compare.rationale }}</p>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ compare.rows }}" as="row" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) 0;border-top:1px solid var(--color-divider);flex-wrap:wrap">
+              <span style="flex:0 0 118px;font-size:12.5px;font-weight:700;color:var(--color-neutral-700)">{{ row.spec }}</span>
+              <span style="flex:1 1 120px;font-size:14px;color:var(--color-neutral-700)">{{ row.target }}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-neutral-400)" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+              <span style="flex:1 1 120px;font-size:14px;font-weight:600">{{ row.alternative }}</span>
+              <span style="{{ row.verdictStyle }}">{{ row.verdict }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding:clamp(16px, 2.2vw, 22px) clamp(20px, 2.6vw, 28px);border-top:1px solid var(--color-divider);display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--color-neutral-700);margin-right:auto">{{ compare.scoreLine }}</span>
+        <a href="{{ compare.url }}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-3) var(--space-6);border-radius:999px;background:var(--color-accent);color:var(--color-bg);font-family:var(--font-heading);font-size:14.5px;text-decoration:none" style-hover="background:var(--color-accent-600);color:var(--color-bg);">
+          Buy this instead
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<div style="position:fixed;right:16px;bottom:16px;z-index:40;display:flex;gap:var(--space-1);padding:var(--space-1);border-radius:999px;background:var(--color-neutral-900);box-shadow:var(--shadow-lg)">
+  <sc-for list="{{ screens }}" as="s" hint-placeholder-count="4">
+    <button onClick="{{ s.onGo }}" style="{{ s.btnStyle }}">{{ s.label }}</button>
+  </sc-for>
+</div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;landing&quot;,&quot;app&quot;,&quot;signin&quot;,&quot;extension&quot;],&quot;default&quot;:&quot;landing&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;defaultView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ranked&quot;,&quot;table&quot;],&quot;default&quot;:&quot;ranked&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Results&quot;}}">
+const TARGET = {
+  name: "Purple Harmony Pillow — Medium",
+  short: "Purple Harmony",
+  brand: "Purple",
+  retailer: "purple.com",
+  price: 159.0,
+  originalPrice: 189.0,
+  rating: 4.5,
+  reviewCount: 1243,
+  specs: [
+    { key: "Fill", value: "Talalay latex" },
+    { key: "Loft", value: "6.5 in" },
+    { key: "Cover", value: "Bamboo viscose" },
+    { key: "Cooling", value: "Honeycomb grid" },
+    { key: "Weight", value: "4.2 lb" },
+    { key: "Warranty", value: "1 year" },
+  ],
+};
+
+const CANDIDATES = [
+  {
+    id: "a1", group: "a",
+    name: "Gel Memory Foam Contour Pillow, Cooling Cover",
+    short: "Gel Contour",
+    brand: "Sweetnight", retailer: "Amazon",
+    price: 42.0, match: 96, quality: 4.4, reviews: 8912, value: 3.6, url: "#",
+    rationale: "Same loft, same cover material, same cooling strategy by a different mechanism. The gel layer does what the honeycomb grid does; the latex-to-foam swap is the only real difference, and it lands within the equivalence threshold.",
+    specs: [
+      { key: "Fill", value: "Gel memory foam", verdict: "equivalent" },
+      { key: "Loft", value: "6.0 in", verdict: "close" },
+      { key: "Cover", value: "Bamboo viscose", verdict: "same" },
+      { key: "Cooling", value: "Gel infusion", verdict: "equivalent" },
+      { key: "Weight", value: "3.8 lb", verdict: "close" },
+      { key: "Warranty", value: "2 years", verdict: "better" },
+    ],
+  },
+  {
+    id: "a2", group: "a",
+    name: "Factory-Direct Talalay Latex Contour Pillow",
+    short: "Factory Latex",
+    brand: "OrganicTextiles", retailer: "Walmart",
+    price: 48.5, match: 93, quality: 4.3, reviews: 2104, value: 2.9, url: "#",
+    rationale: "Identical fill and loft to the original — the same Talalay latex at the same 6.5 inches. It gives up the engineered cooling layer and the branded cover, which is where the 7% gap sits.",
+    specs: [
+      { key: "Fill", value: "Talalay latex", verdict: "same" },
+      { key: "Loft", value: "6.5 in", verdict: "same" },
+      { key: "Cover", value: "Organic cotton", verdict: "equivalent" },
+      { key: "Cooling", value: "Perforated core", verdict: "close" },
+      { key: "Weight", value: "4.4 lb", verdict: "close" },
+      { key: "Warranty", value: "1 year", verdict: "same" },
+    ],
+  },
+  {
+    id: "a3", group: "b",
+    name: "Adjustable Shredded Latex Support Pillow",
+    short: "Shredded Latex",
+    brand: "Sleep Artisan", retailer: "Target",
+    price: 55.0, match: 88, quality: 4.6, reviews: 741, value: 2.6, url: "#",
+    rationale: "A different construction reaching the same outcome: shredded fill you tune yourself instead of a fixed contour. Rated higher than the original, on a much smaller review base — which is why its quality score lands where it does rather than at 4.6.",
+    specs: [
+      { key: "Fill", value: "Shredded latex", verdict: "different" },
+      { key: "Loft", value: "Adjustable", verdict: "better" },
+      { key: "Cover", value: "Cotton twill", verdict: "equivalent" },
+      { key: "Cooling", value: "Open-cell airflow", verdict: "close" },
+      { key: "Weight", value: "3.1 lb", verdict: "close" },
+      { key: "Warranty", value: "5 years", verdict: "better" },
+    ],
+  },
+  {
+    id: "a4", group: "c",
+    name: "High-Density Foam Pillow, 2-Pack",
+    short: "HD Foam 2-pack",
+    brand: "Utopia Bedding", retailer: "Amazon",
+    price: 22.0, match: 74, quality: 4.1, reviews: 41230, value: 4.9, url: "#",
+    rationale: "The cheapest listing that still clears the quality floor, at two pillows for the price. It is not an equivalent — no cooling layer, a softer core, a poly-cotton cover — but at 74% match and 41,000 reviews it is a known quantity rather than a gamble.",
+    specs: [
+      { key: "Fill", value: "Polyester foam", verdict: "different" },
+      { key: "Loft", value: "5.0 in", verdict: "lower" },
+      { key: "Cover", value: "Poly-cotton", verdict: "lower" },
+      { key: "Cooling", value: "None", verdict: "lower" },
+      { key: "Weight", value: "2.2 lb", verdict: "different" },
+      { key: "Warranty", value: "6 years", verdict: "better" },
+    ],
+  },
+];
+
+const GROUPS = [
+  { id: "a", title: "Same spec, no logo", description: "Matches the original's materials and construction. Different label, different price." },
+  { id: "b", title: "Different build, same job", description: "Another way of reaching the same outcome — worth it when the alternative route is better." },
+  { id: "c", title: "Cheapest that clears quality", description: "Lowest price still above the quality floor. Spec match drops; we say so rather than hide it." },
+];
+
+const VERDICTS = {
+  same: { label: "Same", bg: "var(--color-accent-2-100)", color: "var(--color-accent-2-700)" },
+  better: { label: "Better", bg: "var(--color-accent-2-200)", color: "var(--color-accent-2-800)" },
+  equivalent: { label: "Equivalent", bg: "var(--color-accent-2-100)", color: "var(--color-accent-2-700)" },
+  close: { label: "Close", bg: "var(--color-surface)", color: "var(--color-neutral-700)" },
+  different: { label: "Different", bg: "var(--color-accent-100)", color: "var(--color-accent-800)" },
+  lower: { label: "Lower", bg: "var(--color-accent-200)", color: "var(--color-accent-800)" },
+};
+
+
+const EXAMPLES = ["purple harmony pillow", "sony wh-1000xm5", "dyson v15 detect"];
+
+class Component extends DCLogic {
+  state = {
+    screen: this.props.startScreen || "landing",
+    appState: "results",
+    query: "purple harmony pillow",
+    view: this.props.defaultView || "ranked",
+    compareId: null,
+  };
+
+  componentDidMount() {
+    this._esc = (e) => { if (e.key === "Escape") this.setState({ compareId: null }); };
+    window.addEventListener("keydown", this._esc);
+  }
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this._esc);
+    clearTimeout(this._t);
+  }
+
+  run = () => {
+    const q = this.state.query.trim();
+    clearTimeout(this._t);
+    // Nothing to resolve a reference product from, so the app sits at its empty state.
+    if (!q) {
+      this.setState({ screen: "app", appState: "idle" });
+      return;
+    }
+    this.setState({ screen: "app", appState: "loading" });
+    const fails = /\bfail\b|\btimeout\b/i.test(q);
+    this._t = setTimeout(() => this.setState({ appState: fails ? "error" : "results" }), 1400);
+  };
+
+  renderVals() {
+    const { screen, appState, query, view, compareId } = this.state;
+    const money = (n) => "$" + n.toFixed(2);
+
+    const target = {
+      name: TARGET.name,
+      meta: TARGET.brand + " · " + TARGET.retailer,
+      priceLabel: money(TARGET.price),
+      originalLabel: money(TARGET.originalPrice),
+      ratingLabel: TARGET.rating.toFixed(1) + "★ (" + TARGET.reviewCount.toLocaleString() + ")",
+    };
+
+    const mk = (p) => ({
+      name: p.name,
+      short: p.short,
+      meta: p.brand + " · " + p.retailer,
+      priceLabel: money(p.price),
+      savingsLabel: "saves " + money(TARGET.price - p.price),
+      barStyle: { width: Math.round((p.price / TARGET.price) * 100) + "%", height: "100%", borderRadius: "999px", background: "var(--color-accent)" },
+      sharePct: Math.round((p.price / TARGET.price) * 100) + "% of original",
+      matchLabel: p.match + "%",
+      ratingLabel: p.quality.toFixed(1),
+      reviewLabel: p.reviews.toLocaleString(),
+      url: p.url,
+      onCompare: () => this.setState({ compareId: p.id }),
+    });
+
+    const groups = GROUPS.map((g) => {
+      const items = CANDIDATES.filter((p) => p.group === g.id);
+      return { title: g.title, description: g.description, count: items.length + (items.length === 1 ? " result" : " results"), products: items.map(mk) };
+    }).filter((g) => g.products.length > 0);
+
+    const bestRaw = CANDIDATES[0];
+    const best = {
+      savingsLabel: money(TARGET.price - bestRaw.price),
+      summary: "kept, at " + bestRaw.match + "% of the product you asked for",
+      name: bestRaw.name,
+      meta: bestRaw.brand + " · " + bestRaw.retailer + " · " + bestRaw.quality.toFixed(1) + "★ (" + bestRaw.reviews.toLocaleString() + ")",
+    };
+
+    const columns = [
+      { short: TARGET.short, priceLabel: money(TARGET.price), savingsLabel: "the original" },
+      ...CANDIDATES.map((p) => ({ short: p.short, priceLabel: money(p.price), savingsLabel: "−" + money(TARGET.price - p.price) })),
+    ];
+    const specKeys = TARGET.specs.map((s) => s.key);
+    const tableRows = specKeys.map((k) => ({
+      spec: k,
+      cells: [
+        { value: (TARGET.specs.find((s) => s.key === k) || {}).value || "—" },
+        ...CANDIDATES.map((p) => ({ value: (p.specs.find((s) => s.key === k) || {}).value || "—" })),
+      ],
+    }));
+    tableRows.push({
+      spec: "Spec match",
+      cells: [{ value: "reference" }, ...CANDIDATES.map((p) => ({ value: p.match + "%" }))],
+    });
+    tableRows.push({
+      spec: "Rating",
+      cells: [
+        { value: TARGET.rating.toFixed(1) + " (" + TARGET.reviewCount.toLocaleString() + ")" },
+        ...CANDIDATES.map((p) => ({ value: p.quality.toFixed(1) + " (" + p.reviews.toLocaleString() + ")" })),
+      ],
+    });
+
+    const sel = CANDIDATES.find((p) => p.id === compareId) || null;
+    let compare = { name: "", priceLabel: "", saveLabel: "", savePctLabel: "", scoreLine: "", rationale: "", url: "#", rows: [] };
+    if (sel) {
+      const save = TARGET.price - sel.price;
+      compare = {
+        name: sel.name,
+        priceLabel: money(sel.price),
+        saveLabel: money(save),
+        savePctLabel: Math.round((save / TARGET.price) * 100) + "% less",
+        scoreLine: sel.match + "% spec match · " + sel.quality.toFixed(1) + "★ from " + sel.reviews.toLocaleString() + " reviews",
+        rationale: sel.rationale,
+        url: sel.url,
+        rows: TARGET.specs.map((t) => {
+          const a = sel.specs.find((s) => s.key === t.key) || { value: "—", verdict: "different" };
+          const v = VERDICTS[a.verdict] || VERDICTS.close;
+          return {
+            spec: t.key, target: t.value, alternative: a.value, verdict: v.label,
+            verdictStyle: { flex: "0 0 auto", fontSize: "11.5px", fontWeight: 700, padding: "3px var(--space-2)", borderRadius: "999px", background: v.bg, color: v.color },
+          };
+        }),
+      };
+    }
+
+    const tabBase = { padding: "var(--space-1) var(--space-3)", border: "none", borderRadius: "999px", fontFamily: "var(--font-body)", fontSize: "13px", fontWeight: 700, cursor: "pointer" };
+    const tabOff = { ...tabBase, background: "transparent", color: "var(--color-neutral-700)" };
+    const tabOn = { ...tabBase, background: "var(--color-neutral-100)", color: "var(--color-text)", boxShadow: "var(--shadow-sm)" };
+    const navBase = { padding: "var(--space-1) var(--space-3)", border: "none", borderRadius: "999px", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" };
+    const screenList = [
+      { key: "landing", label: "Landing" },
+      { key: "app", label: "Empty", app: "idle" },
+      { key: "app", label: "Results", app: "results" },
+      { key: "app", label: "Error", app: "error" },
+      { key: "signin", label: "Sign in" },
+      { key: "extension", label: "Extension" },
+    ];
+
+    return {
+      onLanding: screen === "landing",
+      onApp: screen === "app",
+      onSignin: screen === "signin",
+      onExtension: screen === "extension",
+      isIdle: appState === "idle",
+      isLoading: appState === "loading",
+      isError: appState === "error",
+      isResults: appState === "results",
+      loadingLabel: "Reading the listing, then scoring " + (CANDIDATES.length * 37) + " candidates…",
+      errorMessage: "api/search → 504 upstream_timeout",
+      query,
+      target,
+      groups,
+      best,
+      columns,
+      tableRows,
+      resultsHeading: CANDIDATES.length + " alternatives worth your attention",
+      viewRanked: view === "ranked",
+      viewTable: view === "table",
+      rankedTabStyle: view === "ranked" ? tabOn : tabOff,
+      tableTabStyle: view === "table" ? tabOn : tabOff,
+      setRanked: () => this.setState({ view: "ranked" }),
+      setTable: () => this.setState({ view: "table" }),
+      compareOpen: !!sel,
+      compare,
+      closeCompare: () => this.setState({ compareId: null }),
+      onBackdrop: (e) => { if (e.target === e.currentTarget) this.setState({ compareId: null }); },
+      extList: CANDIDATES.map(mk),
+      examples: EXAMPLES.map((label) => ({ label, onPick: () => { this.setState({ query: label }); this.run(); } })),
+      steps: [
+        { n: "1", title: "Match on specs, not names", body: "Two products doing the same job rarely list the same attributes. We line them up spec by spec so they can be compared at all." },
+        { n: "2", title: "Filter out the junk", body: "A 5.0 from two reviews is not a 5.0. Ratings only count once there are enough of them to mean something." },
+        { n: "3", title: "Rank by value, not discount", body: "What you get weighed against what you pay. The cheapest thing rarely wins. The overpriced brand never does." },
+      ],
+      modes: [
+        { label: "Paste a link", sub: "Any retailer product page" },
+        { label: "Name a product", sub: "Brand and model, as you'd say it" },
+        { label: "Describe the job", sub: "No target — we rank against the description" },
+      ],
+      extPoints: [
+        { label: "Reads the page you're already on — no copying links" },
+        { label: "Shows the equivalent before you reach the cart" },
+        { label: "Nothing leaves your browser until you ask for a comparison" },
+      ],
+      screens: screenList.map((s) => ({
+        label: s.label,
+        btnStyle: screen === s.key && (!s.app || appState === s.app)
+          ? { ...navBase, background: "var(--color-accent)", color: "var(--color-bg)" }
+          : { ...navBase, background: "transparent", color: "var(--color-neutral-400)" },
+        onGo: () => {
+          clearTimeout(this._t);
+          this.setState({ screen: s.key, compareId: null, appState: s.app || appState });
+        },
+      })),
+      goLanding: () => this.setState({ screen: "landing" }),
+      goApp: () => this.setState({ screen: "app", appState: "results" }),
+      goResults: () => this.setState({ screen: "app", appState: "results" }),
+      goSignin: () => this.setState({ screen: "signin" }),
+      goExtension: () => this.setState({ screen: "extension" }),
+      retry: () => this.run(),
+      onQueryChange: (e) => this.setState({ query: e.target.value }),
+      onSubmit: (e) => { e.preventDefault(); this.run(); },
+    };
+  }
+}
+
+</script>
+</body>
+</html>
