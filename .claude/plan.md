@@ -12,7 +12,7 @@ Mission: implement the financial optimization product comparison pipeline descri
 
 ## Phase 1: Config & Models
 - [x] `backend/app/config.py` — env-driven settings (SerpAPI key, Vultr cache connection, `m=25`, `C=4.0` defaults, category weight defaults)
-- [ ] `backend/app/models.py` — Pydantic schemas: `SearchMode` enum (`url` / `exact_product` / `description`), `Product`, `SearchQuery` (carries `mode` + raw input), `SpecAttribute`, `ComparisonResult`, `Tier`
+- [x] `backend/app/models.py` — Pydantic schemas: `SearchMode` enum (`url` / `exact_product` / `description`), `Product`, `SearchQuery` (carries `mode` + raw input), `SpecAttribute`, `ComparisonResult`, `Tier`
 
 ## Phase 2: Data Ingestion
 - [ ] `backend/app/ingestion/target_resolver.py` — resolves the target reference product per `SearchQuery.mode`: scrapes the page for `url` mode, takes the top SerpAPI match for `exact_product` mode, returns `None` for `description` mode
