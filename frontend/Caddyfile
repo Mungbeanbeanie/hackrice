@@ -1,0 +1,21 @@
+# SITE_ADDRESS is the public address Caddy binds to.
+# Default ":80" serves plain HTTP on the bare instance IP, which is what we
+# have until a domain exists. Set SITE_ADDRESS=app.example.com in the deploy
+# env and Caddy provisions a Let's Encrypt certificate automatically —
+# no certbot, no renewal cron.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# API first: anything under /api goes to the backend container.
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Everything else is the React SPA. try_files sends unknown paths to
+	# index.html so client-side routes survive a hard refresh.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

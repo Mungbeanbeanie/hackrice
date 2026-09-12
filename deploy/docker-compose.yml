@@ -1,0 +1,50 @@
+name: hackrice
+
+# Deployed by .github/workflows/ci.yml. The .env alongside this file is written
+# by the deploy job from GitHub Environment secrets — it is never committed.
+#
+# IMAGE_TAG is the commit SHA, so every deploy is immutable and rolling back is
+# editing one line in .env and re-running `docker compose up -d`.
+
+services:
+  api:
+    image: ghcr.io/mungbeanbeanie/hackrice-api:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    healthcheck:
+      # python is in the image already; no need to install curl just for this.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  web:
+    image: ghcr.io/mungbeanbeanie/hackrice-web:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # ":80" = plain HTTP on the bare IP. Set a hostname here and Caddy
+      # provisions TLS on its own.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Persists issued certificates. Without this, every deploy re-requests
+      # from Let's Encrypt and you hit the rate limit.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
