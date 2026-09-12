@@ -200,6 +200,7 @@ Per environment, add these **secrets**:
 | `DATABASE_URL` | the Vultr Postgres connection string for that environment's database |
 | `SERPAPI_API_KEY` | SerpAPI key. Unset writes an empty line to `.env` and every search fails with `SERPAPI_API_KEY is not set` |
 | `OPENAI_API_KEY` | OpenAI key for `text-embedding-3-small` |
+| `COUPON_API` | CouponAPI.org key (Phase 9, unused until `coupons/client.py` lands). Unset is harmless for now — nothing reads it yet. |
 
 Every one of these is written into `.env` by the deploy job on each run, so a
 value that exists only in a hand-edited `.env` on the box is overwritten by the

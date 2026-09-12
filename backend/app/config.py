@@ -44,8 +44,8 @@ CATEGORY_WEIGHTS: dict[str, float] = {
     "soft": 0.5,
 }
 
-# Phase 9 coupons: CouponAPI.org lookup key. Env var name is a placeholder —
-# their real auth scheme (and whether a second credential like a
-# publisher/affiliate ID is also required) isn't confirmed yet; see plan.md
-# Phase 9's blocker note. Revisit once real docs are in hand.
-COUPON_API_KEY = os.getenv("COUPON_API_KEY")
+# Phase 9 coupons: CouponAPI.org lookup key. Var name settled as COUPON_API
+# (matches the GitHub secret / .env). Auth scheme beyond this single key
+# (e.g. a second publisher/affiliate credential) isn't confirmed yet; see
+# plan.md Phase 9's blocker note.
+COUPON_API = os.getenv("COUPON_API")
