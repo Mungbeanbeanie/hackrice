@@ -19,7 +19,10 @@ export default function TargetProductCard({ product }: Props) {
     >
       <div
         className="w-[62px] h-[62px] rounded-md flex-shrink-0 border border-divider overflow-hidden"
-        style={{ background: STRIPE }}
+        // Listing thumbnails are overwhelmingly transparent PNGs, so the stripes
+        // designed as the missing-image fallback were showing through every
+        // product photo.
+        style={{ background: showImg ? "#fff" : STRIPE }}
       >
         {showImg && (
           <img
@@ -35,7 +38,7 @@ export default function TargetProductCard({ product }: Props) {
           className="uppercase text-neutral-700 font-bold"
           style={{ fontSize: "11px", letterSpacing: "0.08em", marginBottom: "var(--space-1)" }}
         >
-          Your reference product
+          Reference product
         </p>
         <h2 style={{ fontSize: "20px", lineHeight: 1.2 }}>{product.name}</h2>
         <p className="text-neutral-700" style={{ fontSize: "13.5px", marginTop: "var(--space-1)" }}>

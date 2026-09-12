@@ -8,6 +8,7 @@ export interface SearchRequest {
 
 export type Verdict = "same" | "better" | "close" | "different" | "lower";
 export type Group = "same_spec" | "same_job" | "clears_floor";
+export type SearchMode = "url" | "exact_product" | "description";
 
 export interface ProductSpec {
   key: string;
@@ -47,6 +48,11 @@ export interface SearchResponse {
   // specific product — there is no single target to anchor against.
   targetProduct: Product | null;
   groups: Record<Group, Product[]>;
+  mode: SearchMode;
+  // What every savings figure and share bar is measured against. In description
+  // mode this is the median of the candidate set, so it is set even though
+  // targetProduct is null — it is a price, not a product anyone can buy.
+  baselinePrice: number | null;
 }
 
 const BASE_URL = "/api";
@@ -82,6 +88,23 @@ export async function searchProducts(req: SearchRequest): Promise<SearchResponse
     }
     throw e;
   }
+}
+
+// Mirrors backend/app/coupons/models.py.
+export interface CouponOffer {
+  // null for "Deal" offers — a discount that needs no code at checkout.
+  code: string | null;
+  discount_description: string;
+  store: string;
+  expires_at: string | null;
+  start_date: string | null;
+  rating: number;
+}
+
+// Resolves to null, not an error, when the store has no active offer — the
+// endpoint answers 200 with a literal `null` body.
+export async function fetchCoupon(store: string): Promise<CouponOffer | null> {
+  return apiFetch<CouponOffer | null>(`/coupons?store=${encodeURIComponent(store)}`);
 }
 
 export interface Account {

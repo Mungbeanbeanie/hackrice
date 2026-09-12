@@ -32,11 +32,21 @@ export const GROUP_ORDER: GroupId[] = GROUPS.map((g) => g.id);
 
 interface Props {
   groups: Record<GroupId, Product[]>;
-  targetPrice: number | null;
+  baselinePrice: number | null;
+  baselineLabel: string;
+  selectedId: string | null;
   onCompare: (product: Product) => void;
+  onSelect: (product: Product) => void;
 }
 
-export default function AlternativeGroups({ groups, targetPrice, onCompare }: Props) {
+export default function AlternativeGroups({
+  groups,
+  baselinePrice,
+  baselineLabel,
+  selectedId,
+  onCompare,
+  onSelect,
+}: Props) {
   return (
     <div className="flex flex-col" style={{ gap: "30px" }}>
       {GROUPS.map((g) => {
@@ -64,7 +74,15 @@ export default function AlternativeGroups({ groups, targetPrice, onCompare }: Pr
             </div>
             <div className="flex flex-col gap-3">
               {products.map((p) => (
-                <ResultCard key={p.id} product={p} targetPrice={targetPrice} onCompare={onCompare} />
+                <ResultCard
+                  key={p.id}
+                  product={p}
+                  baselinePrice={baselinePrice}
+                  baselineLabel={baselineLabel}
+                  selected={p.id === selectedId}
+                  onCompare={onCompare}
+                  onSelect={onSelect}
+                />
               ))}
             </div>
           </section>

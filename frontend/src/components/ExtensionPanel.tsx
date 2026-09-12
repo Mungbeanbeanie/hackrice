@@ -71,7 +71,10 @@ export default function ExtensionPanel({ targetProduct, products, onClose, onOpe
           >
             <div
               className="rounded-sm flex-shrink-0 border border-divider overflow-hidden"
-              style={{ width: 36, height: 36, background: STRIPE }}
+              // Listing thumbnails are overwhelmingly transparent PNGs, so the
+              // stripes designed as the missing-image fallback were showing
+              // through every product photo.
+              style={{ width: 36, height: 36, background: p.image ? "#fff" : STRIPE }}
             >
               {p.image && <img src={p.image} alt={p.short} className="w-full h-full object-contain" />}
             </div>

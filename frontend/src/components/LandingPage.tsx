@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowDown, ArrowRight, Check } from "lucide-react";
 
 import HoneyDrop from "@/components/HoneyDrop";
@@ -40,6 +41,38 @@ const EXT_POINTS = [
 
 const STRIPE = "repeating-linear-gradient(45deg, var(--color-neutral-200) 0 5px, var(--color-neutral-100) 5px 10px)";
 const STRIPE_SAGE = "repeating-linear-gradient(45deg, var(--color-accent-2-200) 0 5px, var(--color-accent-2-100) 5px 10px)";
+
+// The two hero mockup thumbnails, served from frontend/public/. The onError
+// below falls back to the striped placeholder that used to be hardcoded here,
+// so a renamed or missing file degrades instead of showing a broken image.
+function ExampleThumb({
+  src,
+  alt,
+  fallback,
+  border,
+}: {
+  src: string;
+  alt: string;
+  fallback: string;
+  border: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div
+      className={`rounded-md flex-shrink-0 border ${border} overflow-hidden`}
+      style={{ width: 52, height: 52, background: failed ? fallback : "#fff" }}
+    >
+      {!failed && (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-contain"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
+  );
+}
 
 // ponytail: a Google Form stands in for a real feedback endpoint because the
 // repo has no working datastore yet — an endpoint would mean provisioning one
@@ -177,7 +210,12 @@ export default function LandingPage({ query, onQueryChange, onSearch, onGoSignin
                 What you were buying
               </p>
               <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
-                <div className="rounded-md flex-shrink-0 border border-divider" style={{ width: 52, height: 52, background: STRIPE }} />
+                <ExampleThumb
+                  src="/purple%20harmony%20pillow.webp"
+                  alt="Purple Harmony Pillow"
+                  fallback={STRIPE}
+                  border="border-divider"
+                />
                 <div className="flex-1 min-w-0">
                   <p style={{ fontSize: "14px", fontWeight: 700, lineHeight: 1.3 }}>Purple Harmony Pillow</p>
                   <p className="text-neutral-700" style={{ fontSize: "13px", marginTop: "2px" }}>
@@ -206,9 +244,11 @@ export default function LandingPage({ query, onQueryChange, onSearch, onGoSignin
                 What you'll buy instead
               </p>
               <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
-                <div
-                  className="rounded-md flex-shrink-0 border border-accent-2-300"
-                  style={{ width: 52, height: 52, background: STRIPE_SAGE }}
+                <ExampleThumb
+                  src="/gel%20memory%20foam%20contour.webp"
+                  alt="Gel Memory Foam Contour pillow"
+                  fallback={STRIPE_SAGE}
+                  border="border-accent-2-300"
                 />
                 <div className="flex-1 min-w-0">
                   <p style={{ fontSize: "14px", fontWeight: 700, lineHeight: 1.3 }}>Gel Memory Foam Contour</p>

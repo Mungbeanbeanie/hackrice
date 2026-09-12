@@ -11,6 +11,7 @@ import SpecBreakdownModal from "@/components/SpecBreakdownModal";
 import LandingPage from "@/components/LandingPage";
 import SignInPage from "@/components/SignInPage";
 import ExtensionPanel from "@/components/ExtensionPanel";
+import CouponPanel from "@/components/CouponPanel";
 import HoneyDrop from "@/components/HoneyDrop";
 
 type Screen = "landing" | "app" | "signin" | "extension";
@@ -73,7 +74,7 @@ function LoadingState() {
           />
         </div>
         <span className="text-accent-700 font-semibold" style={{ fontSize: "14.5px" }}>
-          Searching retailers. A new product can take up to a minute.
+          Searching retailers...
         </span>
       </div>
       <div className="flex flex-col" style={{ gap: "var(--space-3)" }}>
@@ -138,11 +139,16 @@ export default function App() {
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [error, setError] = useState("");
   const [compareProduct, setCompareProduct] = useState<Product | null>(null);
+  const [couponProduct, setCouponProduct] = useState<Product | null>(null);
 
   function goTo(next: Screen) {
     // The overlay surviving a screen change was a real bug in the design
     // prototype — clear it on every navigation.
     setCompareProduct(null);
+    setCouponProduct(null);
+    // Going home means starting over; leaving the last query in the box made
+    // the landing page look like it was mid-search.
+    if (next === "landing") setQuery("");
     setScreen(next);
   }
 
@@ -167,6 +173,14 @@ export default function App() {
 
   const allProducts = results ? flattenGroups(results.groups) : [];
   const best = allProducts[0];
+  // Groups are ordered by equivalence and ranked by value within a group, so
+  // the leader is the best match — not necessarily the lowest price anywhere.
+  // Everything returned already cleared the quality floor, so a plain min is
+  // the cheapest option worth showing.
+  const cheapest = allProducts.reduce<Product | undefined>(
+    (low, p) => (low === undefined || p.price < low.price ? p : low),
+    undefined,
+  );
 
   return (
     <>
@@ -263,8 +277,13 @@ export default function App() {
                   {view === "ranked" ? (
                     <AlternativeGroups
                       groups={results.groups}
-                      targetPrice={results.targetProduct?.price ?? null}
+                      baselinePrice={results.baselinePrice}
+                      baselineLabel={
+                        results.mode === "description" ? "median price" : "original price"
+                      }
+                      selectedId={couponProduct?.id ?? null}
                       onCompare={setCompareProduct}
+                      onSelect={setCouponProduct}
                     />
                   ) : (
                     <ComparisonTable target={results.targetProduct} products={allProducts} />
@@ -281,7 +300,7 @@ export default function App() {
                         className="uppercase text-accent-2-700 font-bold"
                         style={{ fontSize: "11px", letterSpacing: "0.08em", margin: "0 0 var(--space-1)" }}
                       >
-                        Best equivalent
+                        Possible Savings:
                       </p>
                       <p className="text-accent-2-700" style={{ fontFamily: "var(--font-heading)", fontSize: "clamp(36px, 4vw, 44px)", lineHeight: 1, margin: 0 }}>
                         {results.targetProduct
@@ -289,18 +308,58 @@ export default function App() {
                           : `$${best.price.toFixed(2)}`}
                       </p>
                       <p className="text-accent-2-700" style={{ fontSize: "14px", margin: "var(--space-2) 0 0" }}>
-                        kept, at {Math.round(best.matchScore)}% of the product you asked for
+                        at {Math.round(best.matchScore)}% of the product you asked for
                       </p>
                       <div className="border-accent-2-300" style={{ marginTop: "var(--space-4)", paddingTop: "var(--space-3)", borderTopWidth: 1, borderTopStyle: "solid" }}>
-                        <p style={{ fontSize: "13.5px", fontWeight: 700, lineHeight: 1.35, margin: 0 }}>
+                        <a
+                          href={best.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-accent-700 underline"
+                          style={{ fontSize: "13.5px", fontWeight: 700, lineHeight: 1.35 }}
+                        >
                           {best.name}
-                        </p>
+                        </a>
                         <p className="text-accent-2-700" style={{ fontSize: "12.5px", margin: "var(--space-1) 0 0" }}>
                           {[best.brand, best.retailer].filter(Boolean).join(" · ")} ·{" "}
                           {best.rating.toFixed(1)}★ ({best.reviewCount.toLocaleString()})
                         </p>
                       </div>
                     </div>
+
+                    {cheapest && (
+                      <div className="bg-neutral-100 border border-divider rounded-lg" style={{ padding: "var(--space-6)" }}>
+                        <p
+                          className="uppercase text-neutral-700 font-bold"
+                          style={{ fontSize: "11px", letterSpacing: "0.08em", margin: "0 0 var(--space-1)" }}
+                        >
+                          Cheapest option:
+                        </p>
+                        <p style={{ fontFamily: "var(--font-heading)", fontSize: "clamp(30px, 3.4vw, 38px)", lineHeight: 1, margin: 0 }}>
+                          ${cheapest.price.toFixed(2)}
+                        </p>
+                        <p className="text-neutral-700" style={{ fontSize: "14px", margin: "var(--space-2) 0 0" }}>
+                          the lowest price here that still clears the quality floor
+                        </p>
+                        <div className="border-divider" style={{ marginTop: "var(--space-4)", paddingTop: "var(--space-3)", borderTopWidth: 1, borderTopStyle: "solid" }}>
+                          <a
+                            href={cheapest.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-accent-700 underline"
+                            style={{ fontSize: "13.5px", fontWeight: 700, lineHeight: 1.35 }}
+                          >
+                            {cheapest.name}
+                          </a>
+                          <p className="text-neutral-700" style={{ fontSize: "12.5px", margin: "var(--space-1) 0 0" }}>
+                            {[cheapest.brand, cheapest.retailer].filter(Boolean).join(" · ")} ·{" "}
+                            {cheapest.rating.toFixed(1)}★ ({cheapest.reviewCount.toLocaleString()})
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <CouponPanel product={couponProduct} />
                   </aside>
                 )}
               </div>
