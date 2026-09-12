@@ -9,7 +9,7 @@ from app.models import Product
 logger = logging.getLogger(__name__)
 
 SERPAPI_URL = "https://serpapi.com/search"
-REQUEST_TIMEOUT = 10.0
+REQUEST_TIMEOUT = httpx.Timeout(connect=5.0, read=25.0, write=5.0, pool=5.0)
 
 
 def search_products(query: str) -> list[Product]:
