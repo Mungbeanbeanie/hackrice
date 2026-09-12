@@ -158,3 +158,20 @@ jobs:
             echo "attempt $i: not up yet"; sleep 3
           done
           echo "health check never passed"; exit 1
+
+  # Keeps dev from drifting behind main after a merge. Runs off the check jobs
+  # rather than deploy so it still syncs while DEPLOY_ENABLED is unset.
+  sync-dev:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # ponytail: fast-forward only. Fails loudly if dev has commits main lacks
+      # — that is real divergence and wants a PR, not an automatic push. Also
+      # never applies to squash-merged PRs, whose commits are not ancestors.
+      - name: Fast-forward dev to main
+        run: git push origin ${{ github.sha }}:refs/heads/dev
