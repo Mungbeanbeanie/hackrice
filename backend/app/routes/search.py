@@ -56,7 +56,9 @@ def _infer_mode(raw_input: str) -> SearchMode:
     # A pasted link routinely loses its scheme ("amazon.com/dp/..."), and since
     # a URL carries no whitespace it would then pass the <=4-word exact-product
     # test and get sent to SerpAPI verbatim, which matches nothing.
-    if text.startswith(("http://", "https://")) or re.match(r"^[\w-]+(\.[\w-]+)+/", text):
+    if text.startswith(("http://", "https://")) or re.match(
+        r"^[\w-]+(\.[\w-]+)+/", text
+    ):
         return SearchMode.URL
     if len(text.split()) <= 4:
         return SearchMode.EXACT_PRODUCT

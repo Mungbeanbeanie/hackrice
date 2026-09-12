@@ -27,9 +27,7 @@ def _get_client() -> openai.OpenAI:
 # and openai's own exception types shouldn't leak past this module to say so.
 def _create(texts: list[str]) -> list[list[float]]:
     try:
-        response = _get_client().embeddings.create(
-            model=EMBEDDING_MODEL, input=texts
-        )
+        response = _get_client().embeddings.create(model=EMBEDDING_MODEL, input=texts)
     except openai.OpenAIError as exc:
         raise RuntimeError(f"Embedding request failed: {exc}") from exc
     return [data.embedding for data in response.data]
