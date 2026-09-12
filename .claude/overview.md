@@ -216,3 +216,17 @@ The web application layout centers on immediate visual clarity, contrasting the 
 * **Tier 1 (Direct Factory/Generic Equivalent):** Displays products with matching materials and structural specifications produced without brand markups.
 * **Tier 2 (Cross-Category Functional Alternative):** Displays products from different material domains that achieve equivalent functional utility mapped through the latent SVD matrix layer.
 * **Tier 3 (Budget Benchmark):** Displays the lowest absolute price point that successfully passes the Bayesian Quality ($Q$) safety threshold, catering to maximum cost reduction.
+
+---
+
+## 6. User Accounts & Shopping History
+
+### 6.1 Account Creation
+* Email-based accounts — user signs up/logs in with an email address (mechanism: magic-link or verification-code email, no password storage for MVP — avoids password hashing/reset flows; revisit if a password flow is explicitly wanted).
+* Backed by the Vultr Managed Postgres cluster referenced in `deploy/README.md` §1 (provisioned but currently unused — `DATABASE_URL` exists in `config.py`/`main.py` but nothing reads it yet). This feature is what activates that connection.
+* Core account fields: `id`, `email` (unique), `created_at`.
+
+### 6.2 Shopping History (exploratory — not yet committed)
+* Tentative: persist each search (`SearchQuery` + resolved target + returned tiers) against the logged-in user's account, so a user can revisit past comparisons.
+* Open questions to resolve before implementation: what "history" actually shows (raw past searches vs. saved/starred alternatives), retention period, whether it drives future personalization (e.g. weighting $V$ by past category preferences) or is purely a log.
+* Not scoped into `plan.md` yet — pending a decision on the above before it becomes checklist items.
