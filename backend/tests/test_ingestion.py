@@ -83,7 +83,62 @@ def test_parse_product_handles_missing_fields() -> None:
     product = serpapi_client._parse_product({"position": 1}, 0)
     assert product.id == "1"
     assert product.price == 0.0
-    assert product.specs == []
+    # Price is always extractable, so it is the one spec every listing carries.
+    assert [s.name for s in product.specs] == ["price"]
+
+
+def test_brand_is_not_the_retailer() -> None:
+    # `source` is the merchant. Assigning it to both fields made every card read
+    # "Walmart · Walmart".
+    product = serpapi_client._parse_product(
+        {"position": 1, "title": "Contour Pillow", "source": "Walmart"}, 0
+    )
+    assert product.vendor == "Walmart"
+    assert product.brand is None
+
+
+def test_extracts_numeric_and_categorical_specs() -> None:
+    raw = {
+        "position": 1,
+        "title": "Memory Foam Pillow Queen 18 in",
+        "snippet": "Cooling gel",
+        "extracted_price": 40.0,
+        "extracted_old_price": 50.0,
+        "rating": 4.5,
+        "reviews": 120,
+    }
+    specs = {s.name: s.value for s in serpapi_client._parse_product(raw, 0).specs}
+    assert specs["price"] == 40.0
+    assert specs["discount_pct"] == 20.0
+    assert specs["rating"] == 4.5
+    assert specs["review_count"] == 120.0
+    assert specs["measure_in"] == 18.0
+    assert specs["size"] == "queen"
+
+
+def test_unit_aliases_collapse_to_one_spec_name() -> None:
+    # "18 inches" and "18 in" must land in the same matrix column, or each
+    # spelling produces a half-filled feature the z-scoring cannot align.
+    names = [
+        {s.name for s in serpapi_client._parse_product({"title": t}, 0).specs}
+        for t in ("Pillow 18 inches", "Pillow 18 in", "Pillow 18 inch")
+    ]
+    assert all("measure_in" in n for n in names)
+
+
+def test_description_carries_snippet_and_extensions() -> None:
+    # The only spec-bearing prose in the payload; dropping it left Layer 1
+    # matching on titles alone.
+    raw = {
+        "position": 1,
+        "title": "Pillow",
+        "snippet": "Latex core",
+        "extensions": ["Free delivery"],
+    }
+    product = serpapi_client._parse_product(raw, 0)
+    assert product.description is not None
+    assert "Latex core" in product.description
+    assert "Free delivery" in product.description
 
 
 def test_parse_product_handles_explicit_nulls() -> None:

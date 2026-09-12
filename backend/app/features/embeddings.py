@@ -33,18 +33,12 @@ def _create(texts: list[str]) -> list[list[float]]:
     return [data.embedding for data in response.data]
 
 
-def embed_text(text: str) -> list[float]:
-    key = cache.hash_key(text)
-    cached = cache.get_cached_embedding(key)
-    if cached is not None:
-        return cached
-
-    embedding = _create([text])[0]
-    cache.set_cached_embedding(key, embedding)
-    return embedding
-
-
 def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a batch, serving whatever the cache already holds.
+
+    Errors propagate: attribute_matrix.build_vector_space catches them and falls
+    back to TF-IDF. Swallowing them here would return a half-built space.
+    """
     keys = [cache.hash_key(text) for text in texts]
     cached = [cache.get_cached_embedding(key) for key in keys]
 

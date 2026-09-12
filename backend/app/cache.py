@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from typing import cast
 
 import redis
@@ -15,7 +16,17 @@ def _get_client() -> redis.Redis | None:
     if _client is None:
         if not config.CACHE_URL:
             return None
-        _client = redis.Redis.from_url(config.CACHE_URL, decode_responses=True)
+        _client = redis.Redis.from_url(
+            config.CACHE_URL,
+            decode_responses=True,
+            # Without these the client inherits the OS TCP timeout. A refused
+            # connection fails instantly, but a firewalled or black-holed host
+            # does not: every request would block for ~75s on Linux, on top of
+            # an already slow upstream search, to reach a cache that is down.
+            # The cache exists to save seconds, so it may not cost minutes.
+            socket_connect_timeout=2.0,
+            socket_timeout=2.0,
+        )
     return _client
 
 
@@ -24,8 +35,8 @@ def _get_client() -> redis.Redis | None:
 # dropped. A cache outage makes search slow, not dead.
 #
 # ponytail: from_url() connects lazily, so a bad URL surfaces here rather than
-# in _get_client, and a dead server is re-dialled on every call. Connection
-# refused is fast; add a breaker only if it ever shows up in a trace.
+# in _get_client, and a dead server is re-dialled on every call, bounded by the
+# timeouts above. Add a breaker only if reconnect cost shows up in a trace.
 def _get(key: str) -> str | None:
     client = _get_client()
     if client is None:
@@ -48,7 +59,11 @@ def _setex(key: str, ttl: int, payload: str) -> None:
 
 
 def hash_key(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
+    # Normalized before hashing so "Purple Harmony Pillow" and "purple harmony
+    # pillow" share one entry. Unnormalized, each spelling paid the full upstream
+    # search — measured at 38-71s cold — for an identical result set.
+    normalized = re.sub(r"\s+", " ", text).strip().lower()
+    return hashlib.sha256(normalized.encode()).hexdigest()
 
 
 def get_cached_search(query_hash: str) -> list[Product] | None:

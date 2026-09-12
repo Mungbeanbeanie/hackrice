@@ -11,11 +11,6 @@ class SearchMode(StrEnum):
     DESCRIPTION = "description"
 
 
-class SearchQuery(BaseModel):
-    mode: SearchMode
-    raw_input: str
-
-
 class SpecAttribute(BaseModel):
     name: str
     value: float | str
@@ -25,11 +20,16 @@ class SpecAttribute(BaseModel):
 class Product(BaseModel):
     id: str
     title: str
+    # Snippet and feature tags from the listing, when the payload carries them.
+    # Sparse, and the only spec-bearing prose available for Layer 1 matching.
+    description: str | None
     brand: str | None
     price: float
+    original_price: float | None
     rating: float
     review_count: int
     vendor: str
+    vendor_logo: str | None
     image_url: str | None
     product_url: str
     specs: list[SpecAttribute]

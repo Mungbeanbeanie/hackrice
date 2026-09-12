@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import db
-from app.routes import auth, compare, search
+from app.routes import auth, search
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="hackrice", lifespan=lifespan)
 
 app.include_router(search.router)
-app.include_router(compare.router)
 app.include_router(auth.router)
 
 
