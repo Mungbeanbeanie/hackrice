@@ -30,18 +30,21 @@ Mission: implement the financial optimization product comparison pipeline descri
 - [x] `backend/app/scoring/value.py` — Layer 4: value optimization score $V$, tier assignment (1/2/3)
 
 ## Phase 5: API
-- [ ] `backend/app/routes/search.py` — `POST /api/search`, branches on `SearchQuery.mode` (resolve target or skip), orchestrates ingestion → features → scoring, returns tiered results (target product omitted from response in `description` mode)
+- [ ] `backend/app/routes/search.py` — `POST /api/search`, **infers** the mode from the raw input (the UI is a single search box and sends no `mode`; `SearchQuery.mode` is backend-derived), then branches on it (resolve target or skip), orchestrates ingestion → features → scoring, returns tiered results (target product omitted from response in `description` mode). Response shape must match `frontend/src/api/client.ts`'s `SearchResponse` (`{ query, targetProduct, tiers: { tier1, tier2, tier3 } }`) or add the adapter there.
 - [ ] `backend/app/routes/compare.py` — `GET /api/compare/{id}`, spec breakdown detail for one candidate
 - [ ] `backend/app/main.py` — wire `search`/`compare` routers into the existing app (extends Phase 0 file)
 
 ## Phase 6: Frontend
-- [ ] `frontend/src/api/client.ts` — typed fetch wrapper for `/api/search` (includes `mode`) and `/api/compare/{id}`
-- [ ] `frontend/src/components/SearchModeSelector.tsx` — URL / Exact Product / Description mode toggle, adapts input field placeholder + validation
-- [ ] `frontend/src/components/SearchBar.tsx` — query/URL input + submit, reads active mode from `SearchModeSelector`
-- [ ] `frontend/src/components/TargetProductCard.tsx` — target reference product header; not rendered when `mode === "description"`
-- [ ] `frontend/src/components/AlternativeTierList.tsx` — renders Tier 1/2/3 result sections
-- [ ] `frontend/src/components/SpecBreakdownModal.tsx` — "Compare Spec Breakdown" detail view
-- [ ] `frontend/src/App.tsx` — wire search flow + components together, conditionally render `TargetProductCard` by mode (extends Phase 0 file)
+Ported from the Figma draft (`frontend/Design nectarly web app/`, since deleted). Live fetch only — no mock data; searches show an error panel until Phase 5 lands.
+- [x] `frontend/src/index.css` — Tailwind v4 entrypoint, honey palette `@theme`, keyframes, `.glass-card` / `.honey-shadow` / `.tier-N-glow`
+- [x] `frontend/src/api/client.ts` — typed fetch wrapper for `/api/search` and `/api/compare/{id}`. Sends `{ query }` only — no `mode`, the backend infers it. Response types are provisional and UI-shaped; Phase 5 settles the contract.
+- [x] `frontend/src/components/HoneyDrop.tsx` — pixel-art mascot/logo mark
+- [x] `frontend/src/components/SearchBar.tsx` — single query input + submit; any non-empty string is valid
+- [x] `frontend/src/components/TargetProductCard.tsx` — target reference product header; rendered only when the response carries a `targetProduct`
+- [x] `frontend/src/components/AlternativeTierList.tsx` — renders Tier 1/2/3 result sections
+- [x] `frontend/src/components/SpecBreakdownModal.tsx` — "Compare Spec Breakdown" detail view
+- [x] `frontend/src/App.tsx` — wires the search flow + components, idle/loading/results/error states; gates `TargetProductCard` on `targetProduct !== null` (extends Phase 0 file)
+- ~~`frontend/src/components/SearchModeSelector.tsx`~~ — dropped: one search box, backend infers url / exact_product / description
 
 ## Phase 7: Tests
 - [ ] `backend/tests/test_scoring.py` — unit tests for $Q$ and $V$ formula correctness
