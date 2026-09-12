@@ -10,6 +10,11 @@ import HoneyDrop from "@/components/HoneyDrop";
 
 type AppState = "idle" | "loading" | "results" | "error";
 
+// ponytail: a Google Form stands in for a real feedback endpoint because the
+// repo has no working datastore yet — an endpoint would mean provisioning one
+// first. Replace with POST /api/feedback once there is somewhere to put it.
+const FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSf0WtkQRAguepMWqBOKYo-e3HQR2Ed6yip4oglBy49RQEGAkg/viewform?usp=publish-editor";
+
 function LoadingSkeleton() {
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
@@ -169,6 +174,20 @@ export default function App() {
           </section>
         )}
       </main>
+
+      {/* Sits outside <main> but inside the gradient root, so it never competes
+          with SpecBreakdownModal's layer below. */}
+      <footer className="max-w-2xl mx-auto px-4 pb-8 text-center">
+        <a
+          href={FEEDBACK_FORM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="glass-card inline-block rounded-2xl px-4 py-2 text-xs font-semibold transition-all duration-200 hover:opacity-80"
+          style={{ color: "#7c4a00" }}
+        >
+          Send feedback
+        </a>
+      </footer>
 
       {compareProduct && (
         <SpecBreakdownModal

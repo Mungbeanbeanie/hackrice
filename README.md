@@ -24,6 +24,15 @@ cd frontend && npm install && npm run dev
 The Vite dev proxy mirrors the Caddy routing used in production, so `/api` paths
 behave the same in both.
 
+This runs **without a cache**: `CACHE_URL` is unset, so every lookup in
+`app/cache.py` misses and every write is dropped. Correct, just slower and it
+re-pays for every embedding. To cache locally, run Valkey alongside it:
+
+```sh
+docker run -d -p 6379:6379 valkey/valkey:alpine
+CACHE_URL=redis://localhost:6379 uv run uvicorn app.main:app --reload
+```
+
 To run the production stack locally instead:
 
 ```sh

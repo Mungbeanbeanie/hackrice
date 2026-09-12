@@ -13,6 +13,12 @@ services:
     environment:
       # Empty until a Managed Postgres cluster exists — nothing reads it yet.
       DATABASE_URL: ${DATABASE_URL:-}
+      # Internal compose hostname, not a credential, so it is hardcoded here
+      # rather than passed through .env like the secrets above.
+      #
+      # The scheme is redis://, not valkey:// — redis-py's from_url() does not
+      # recognise the valkey scheme, and the wire protocol is identical.
+      CACHE_URL: redis://cache:6379
     healthcheck:
       # python is in the image already; no need to install curl just for this.
       test:
@@ -26,6 +32,16 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  # Valkey — the open-source fork of Redis 7.2.4, wire-compatible with it, so
+  # the redis-py client in the API image talks to it unchanged.
+  #
+  # No volume and no port mapping on purpose: everything in here is a cached
+  # SerpAPI response or embedding that can be recomputed, and only `api` needs
+  # to reach it. Losing the cache on restart costs one slow request.
+  cache:
+    image: valkey/valkey:alpine
+    restart: unless-stopped
 
   web:
     image: ghcr.io/mungbeanbeanie/hackrice-web:${IMAGE_TAG}

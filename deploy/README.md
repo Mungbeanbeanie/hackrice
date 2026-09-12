@@ -21,6 +21,9 @@ Done:
 - Docker, the `deploy` user and SSH hardening on each box (step 2)
 - Both GitHub Environments, each holding `SSH_HOST` / `SSH_USER` / `SSH_KEY` (step 3)
 - `DEPLOY_ENABLED=true` — deploys are live, and staging has taken several
+- The `cache` service (Valkey) in [`docker-compose.yml`](docker-compose.yml) —
+  no provisioning, no secret, no firewall rule: it runs on the box beside `api`
+  and is reachable only over the compose network. Nothing to do per-environment.
 
 Remaining:
 
