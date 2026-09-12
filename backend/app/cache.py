@@ -6,6 +6,7 @@ from typing import cast
 import redis
 
 from app import config
+from app.coupons.models import CouponOffer
 from app.models import Product
 
 _client: redis.Redis | None = None
@@ -91,3 +92,14 @@ def set_cached_embedding(
     text_hash: str, embedding: list[float], ttl: int = 86400
 ) -> None:
     _setex(f"embedding:{text_hash}", ttl, json.dumps(embedding))
+
+
+def get_cached_coupon(store: str) -> CouponOffer | None:
+    raw = _get(f"coupon:{store}")
+    if raw is None:
+        return None
+    return CouponOffer.model_validate(json.loads(raw))
+
+
+def set_cached_coupon(store: str, offer: CouponOffer, ttl: int = 3600) -> None:
+    _setex(f"coupon:{store}", ttl, json.dumps(offer.model_dump(mode="json")))

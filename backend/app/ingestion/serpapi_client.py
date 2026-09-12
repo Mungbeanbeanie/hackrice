@@ -39,6 +39,18 @@ _UNIT_ALIASES = {"inch": "in", "inches": "in", "lbs": "lb"}
 # reaches it. Highest-coverage real spec on the sample payload (15/40).
 _SIZE = re.compile(r"\b(twin|full|queen|king|standard|jumbo)\b", re.I)
 
+# Closed cross-category material vocabulary — the spec-by-spec Compare overlay
+# needs real physical specs to show, and material is the one that spans
+# categories (pillows, mattresses, apparel, electronics) without a shared unit
+# to key off of. Multi-word terms are listed before any single-word term they
+# contain ("memory foam" before "foam"): re's alternation takes the first
+# alternative that matches at a given position, not the longest one.
+_MATERIAL = re.compile(
+    r"\b(memory foam|latex|down|foam|gel|cotton|polyester|wool|leather|"
+    r"aluminum|aluminium|stainless steel|steel|plastic|silicone|bamboo|linen)\b",
+    re.I,
+)
+
 
 def _upstream_error(query: str, exc: httpx.HTTPError) -> RuntimeError:
     # httpx puts the full request URL in its exception message, and our api_key
@@ -165,6 +177,14 @@ def _extract_specs(
     if size:
         specs.append(
             SpecAttribute(name="size", value=size.group(1).lower(), weight_tier="hard")
+        )
+
+    material = _MATERIAL.search(text)
+    if material:
+        specs.append(
+            SpecAttribute(
+                name="material", value=material.group(1).lower(), weight_tier="hard"
+            )
         )
 
     return specs
