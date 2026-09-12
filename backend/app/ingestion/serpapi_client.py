@@ -9,7 +9,18 @@ from app.models import Product
 logger = logging.getLogger(__name__)
 
 SERPAPI_URL = "https://serpapi.com/search"
-REQUEST_TIMEOUT = httpx.Timeout(connect=5.0, read=25.0, write=5.0, pool=5.0)
+# A synchronous google_shopping search holds the connection open for the whole
+# scrape, so TTFB is the search duration, not network latency. Measured cold:
+# 17s and 52s on two sample queries. A repeat of the same query returns in
+# 0.06s — SerpAPI replays its own cached copy — so this budget is paid once per
+# distinct query, then absorbed by that cache and ours.
+#
+# 90s is deliberately well above the 52s worst case observed. The old 25s was
+# below it, and every search died on the read.
+#
+# ponytail: no retry. One call with a 90s budget beats two attempts at 180s,
+# which no browser waits through. Add one only if stalls prove intermittent.
+REQUEST_TIMEOUT = httpx.Timeout(connect=5.0, read=90.0, write=5.0, pool=5.0)
 
 
 def search_products(query: str) -> list[Product]:
@@ -40,7 +51,8 @@ def search_products(query: str) -> list[Product]:
         raise RuntimeError(f"SerpAPI request failed: {exc}") from exc
 
     products = [
-        _parse_product(raw) for raw in response.json().get("shopping_results", [])
+        _parse_product(raw, i)
+        for i, raw in enumerate(response.json().get("shopping_results", []))
     ]
     # A 200 with no results shouldn't poison the query for the full TTL; a
     # re-fetch on a genuinely empty query costs one call.
@@ -49,21 +61,28 @@ def search_products(query: str) -> list[Product]:
     return products
 
 
-def _parse_product(raw: dict) -> Product:
+def _parse_product(raw: dict, index: int) -> Product:
     price = raw.get("extracted_price")
     if price is None:
-        price = _parse_price_string(raw.get("price", ""))
+        price = _parse_price_string(raw.get("price") or "")
 
+    # `or` rather than a .get() default throughout: SerpAPI sends explicit nulls
+    # as well as omitting keys, and .get(k, default) only covers the omission.
+    # A null rating would fail Product's non-optional float and 500 the request.
+    #
+    # The index fallback keeps ids unique. Scores are carried in dicts keyed by
+    # product.id (quality.py, svd.py, standardize.py), so two candidates sharing
+    # an id silently share one score.
     return Product(
-        id=str(raw.get("product_id", raw.get("position", ""))),
-        title=raw.get("title", ""),
+        id=str(raw.get("product_id") or raw.get("position") or index),
+        title=raw.get("title") or "",
         brand=raw.get("source"),
         price=price,
-        rating=raw.get("rating", 0.0),
-        review_count=raw.get("reviews", 0),
-        vendor=raw.get("source", ""),
+        rating=raw.get("rating") or 0.0,
+        review_count=raw.get("reviews") or 0,
+        vendor=raw.get("source") or "",
         image_url=raw.get("thumbnail"),
-        product_url=raw.get("product_link", ""),
+        product_url=raw.get("product_link") or "",
         specs=[],
     )
 

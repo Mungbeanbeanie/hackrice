@@ -14,7 +14,11 @@ def _get_client() -> openai.OpenAI:
     if _client is None:
         if not config.OPENAI_API_KEY:
             raise RuntimeError("OPENAI_API_KEY is not set")
-        _client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
+        # The SDK default is a 600s timeout — a stalled embeddings call would
+        # hang the request for ten minutes behind an already-slow search.
+        _client = openai.OpenAI(
+            api_key=config.OPENAI_API_KEY, timeout=20.0, max_retries=2
+        )
     return _client
 
 

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from app.features import attribute_matrix, standardize, svd
 from app.ingestion import serpapi_client, target_resolver
-from app.models import ComparisonResult, Product, SearchMode, SearchQuery, Tier
+from app.models import ComparisonResult, Product, SearchMode, Tier
 from app.scoring import quality, value
 
 router = APIRouter()
@@ -94,22 +94,29 @@ def _to_wire_product(
 @router.post("/api/search", response_model=SearchApiResponse)
 def search(body: SearchRequestBody) -> SearchApiResponse:
     mode = _infer_mode(body.query)
-    query = SearchQuery(mode=mode, raw_input=body.query)
-    target = target_resolver.resolve_target(query)
+    search_text = (
+        target_resolver.url_to_text(body.query)
+        if mode == SearchMode.URL
+        else body.query
+    )
 
-    if mode != SearchMode.DESCRIPTION:
-        if target is None:
-            raise HTTPException(404, "Target product not found")
-        search_text = target.title
-        target_price = target.price
+    # One upstream call, not two. Resolving the target separately and then
+    # re-searching on its title doubled latency and quota for the same result
+    # set — and the cache could not dedupe the pair, since the raw query and the
+    # resolved title hash differently.
+    try:
+        results = serpapi_client.search_products(search_text)
+    except RuntimeError as exc:
+        raise HTTPException(502, f"Product search upstream unavailable: {exc}") from exc
+
+    if mode == SearchMode.DESCRIPTION:
+        target, candidates = None, results
     else:
-        search_text = body.query
-        target_price = None
+        if not results:
+            raise HTTPException(404, "Target product not found")
+        target, candidates = results[0], results[1:]
 
-    candidates = serpapi_client.search_products(search_text)
-    if target is not None:
-        candidates = [c for c in candidates if c.id != target.id]
-
+    target_price = target.price if target is not None else None
     target_wire = _to_wire_product(target) if target is not None else None
 
     if not candidates:
@@ -134,7 +141,7 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
 
     quality_scores = quality.compute_quality_scores(candidates)
 
-    results = value.rank_candidates(
+    ranked = value.rank_candidates(
         candidates, quality_scores, similarities, spec_matches, target_price
     )
 
@@ -142,7 +149,7 @@ def search(body: SearchRequestBody) -> SearchApiResponse:
     tier2: list[WireProduct] = []
     tier3: list[WireProduct] = []
     buckets = {1: tier1, 2: tier2, 3: tier3}
-    for result in results:
+    for result in ranked:
         buckets[_tier_to_int(result.tier)].append(
             _to_wire_product(result.candidate, result)
         )

@@ -78,7 +78,31 @@ def test_empty_results_are_not_cached(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_parse_product_handles_missing_fields() -> None:
-    product = serpapi_client._parse_product({"position": 1})
+    product = serpapi_client._parse_product({"position": 1}, 0)
     assert product.id == "1"
     assert product.price == 0.0
     assert product.specs == []
+
+
+def test_parse_product_handles_explicit_nulls() -> None:
+    # SerpAPI sends nulls as well as omitting keys, and a null rating would fail
+    # Product's non-optional float.
+    raw = {
+        "product_id": None,
+        "position": None,
+        "title": None,
+        "rating": None,
+        "reviews": None,
+        "source": None,
+        "price": None,
+        "product_link": None,
+    }
+    product = serpapi_client._parse_product(raw, 3)
+    assert product.id == "3"
+    assert product.rating == 0.0
+    assert product.review_count == 0
+
+
+def test_parse_products_get_unique_ids_without_identifiers() -> None:
+    products = [serpapi_client._parse_product({}, i) for i in range(3)]
+    assert len({p.id for p in products}) == 3
