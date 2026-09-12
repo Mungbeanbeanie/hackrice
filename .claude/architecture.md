@@ -2,84 +2,98 @@
 
 File structure, component ownership, and dependency graph. Responsibility text for each file lives in `plan.md` — not duplicated here.
 
-## Tree
-
-Everything below exists. Phase numbers refer to `plan.md`.
+## File Structure
 
 ```
-backend/                   FastAPI service, uv-managed, Python 3.14
+backend/
   app/
-    __init__.py
-    main.py                app instance, /api/health, reads DATABASE_URL   [Phase 0]
+    main.py
+    config.py
+    models.py
+    cache.py
+    ingestion/
+      target_resolver.py
+      serpapi_client.py
+    features/
+      embeddings.py
+      attribute_matrix.py
+      svd.py
+      standardize.py
+    scoring/
+      quality.py
+      value.py
+    routes/
+      search.py
+      compare.py
   tests/
     test_smoke.py
-  Dockerfile               uv sync --locked --no-dev, runs uvicorn as nobody
-  pyproject.toml           deps + ruff / mypy / pytest config
-  uv.lock
+    test_scoring.py
+    test_pipeline.py
 
-frontend/                  Vite + React + TypeScript
+frontend/
   src/
-    main.tsx               React root
-    App.tsx                placeholder shell, fetches /api/health          [Phase 0]
-    App.test.tsx
-  Caddyfile                binds {$SITE_ADDRESS::80}, /api/* → api:8000, SPA fallback
-  Dockerfile               node build stage → caddy:2-alpine serving /srv
-  vite.config.ts, tsconfig.json, eslint.config.js
+    main.tsx
+    App.tsx
+    api/
+      client.ts
+    components/
+      SearchModeSelector.tsx
+      SearchBar.tsx
+      TargetProductCard.tsx
+      AlternativeTierList.tsx
+      SpecBreakdownModal.tsx
 
 deploy/
-  docker-compose.yml       api + web services, runs on each Vultr box      [Phase 0]
-  README.md                provisioning runbook + current infra status     [Phase 0]
-
-.github/workflows/
-  ci.yml                   check → build → push GHCR → ssh deploy → smoke test
-
-.claude/                   project memory — see CLAUDE.md for which file owns what
+  docker-compose.yml
+  README.md
 ```
 
-## Runtime graph
+## Component Ownership
+
+| Group | Files | Owns |
+| :--- | :--- | :--- |
+| Config & Models | `config.py`, `models.py` | Env settings, `SearchMode` enum, shared Pydantic schemas. No internal deps — foundation for every other backend file. |
+| Ingestion | `ingestion/target_resolver.py`, `ingestion/serpapi_client.py`, `cache.py` | Resolving/fetching raw product data per search mode; caching responses and embeddings. |
+| Feature Engineering | `features/embeddings.py`, `features/attribute_matrix.py`, `features/svd.py`, `features/standardize.py` | Turning raw ingested data into the latent-space similarity score (Layers 1–2 of `overview.md` §3). |
+| Scoring | `scoring/quality.py`, `scoring/value.py` | Bayesian quality ($Q$) and value optimization ($V$) computation, tier assignment (Layers 3–4). |
+| API | `routes/search.py`, `routes/compare.py`, `main.py` | HTTP surface; orchestrates ingestion → features → scoring per request; wires routers into the app. |
+| Frontend data | `api/client.ts` | Typed fetch layer against the API surface above. |
+| Frontend input | `components/SearchModeSelector.tsx`, `components/SearchBar.tsx` | Mode selection + query/URL entry. |
+| Frontend output | `components/TargetProductCard.tsx`, `components/AlternativeTierList.tsx`, `components/SpecBreakdownModal.tsx` | Rendering the resolved target (when present) and tiered results. |
+| App composition | `App.tsx`, `main.tsx` | Wires input + output components around `api/client.ts`. |
+| Deploy | `docker-compose.yml`, `README.md` | Runs built backend/frontend images; no dependency on internal file structure. |
+
+## Dependency Graph
 
 ```
-                    browser
-                       │ :80 (:443 once a domain exists)
-                       ▼
-              web  (Caddy, frontend/Dockerfile)
-                       │
-        ┌──────────────┴──────────────┐
-        │ /api/*                      │ everything else
-        ▼                             ▼
-  api (uvicorn :8000)            /srv static SPA
-        │
-        │ DATABASE_URL  (plumbed, unread — no data model yet)
-        ▼
-  Vultr Managed Postgres  ← NOT CREATED YET
+config.py ─┬─▶ models.py
+           │
+           ▼
+target_resolver.py ──▶ serpapi_client.py ──▶ cache.py
+           │
+           ▼
+embeddings.py ──▶ attribute_matrix.py ─┬─▶ svd.py
+                                        └─▶ standardize.py
+           │
+           ▼
+quality.py ──▶ value.py
+           │
+           ▼
+routes/search.py ──▶ routes/compare.py
+           │
+           ▼
+main.py  (wires routers into the FastAPI app)
+           │
+           ▼
+frontend/src/api/client.ts
+           │
+           ▼
+SearchModeSelector.tsx ──▶ SearchBar.tsx ─┐
+                                          ▼
+TargetProductCard.tsx ──────────────▶ App.tsx ◀── AlternativeTierList.tsx ◀── SpecBreakdownModal.tsx
 ```
 
-Only `web` publishes ports. `api` is reachable solely over the compose network,
-which is why the firewall group has no rule for 8000 and does not need one.
-
-## Deploy graph
-
-```
-push dev  ──▶ ci.yml ──▶ ghcr.io/mungbeanbeanie/hackrice-{api,web}:<sha> ──▶ staging box
-push main ──▶ ci.yml ──▶ same images ────────────────────────────────────▶ production box
-```
-
-Images are tagged with the commit SHA, so the `IMAGE_TAG` line in the box's
-`.env` is the single thing deciding which version runs. `.env` is rewritten from
-GitHub Environment secrets on every deploy, so the server is never the only
-place a setting lives.
-
-## Not yet built
-
-Phases 1–7 of `plan.md` add `config.py`, `models.py`, `ingestion/`, `features/`,
-`scoring/` and `routes/` under `backend/app/`, plus `api/` and `components/`
-under `frontend/src/`. Nothing in the tree above depends on them, so they can
-land in any order the phase dependencies allow.
-
-Two structural decisions are still open and will change this file when made:
-
-- **Cache layer** (`backend/app/cache.py`, Phase 2) — a Vultr Managed Caching
-  (Valkey) instance, or a table in the Postgres cluster already being created.
-- **Auth** — if Google sign-in lands it adds a user table and a token-verify
-  dependency in `backend/app/`, and is blocked on a domain + TLS first, since
-  Google rejects bare-IP OAuth origins.
+Notes:
+* `target_resolver.py` calls into `serpapi_client.py` for `exact_product` mode lookups; it is a no-op passthrough for `description` mode (see `plan.md` Phase 2).
+* `svd.py` and `standardize.py` both consume `attribute_matrix.py`'s output independently — `svd.py` for Layer 1 similarity, `standardize.py` for Layer 2 scaling — and their outputs both feed `value.py` alongside `quality.py`.
+* `TargetProductCard.tsx` is conditionally omitted at the `App.tsx` composition level, not deleted from the tree, when `mode === "description"` (see `plan.md` Phase 6).
