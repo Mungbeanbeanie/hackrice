@@ -102,6 +102,36 @@ def delete_search_history(account_id: str) -> int:
         ).rowcount
 
 
+def get_password_hash(account_id: str) -> str | None:
+    with db.get_pool().connection() as conn:
+        row = conn.execute(
+            "SELECT password_hash FROM accounts WHERE id = %s", (account_id,)
+        ).fetchone()
+    return row[0] if row else None
+
+
+def get_account_for_login(email: str) -> tuple[Account, str | None] | None:
+    """Only for the password-login path — the returned hash must never reach
+    the client. Never merged into _COLUMNS/_to_account for that reason.
+    """
+    with db.get_pool().connection() as conn:
+        row = conn.execute(
+            f"SELECT {_COLUMNS}, password_hash FROM accounts WHERE email = %s",
+            (email,),
+        ).fetchone()
+    if row is None:
+        return None
+    return _to_account(row[:-1]), row[-1]
+
+
+def set_password(account_id: str, password_hash: str) -> None:
+    with db.get_pool().connection() as conn:
+        conn.execute(
+            "UPDATE accounts SET password_hash = %s WHERE id = %s",
+            (password_hash, account_id),
+        )
+
+
 def store_verification_code(email: str, code: str, expires_at: datetime) -> None:
     with db.get_pool().connection() as conn:
         conn.execute(

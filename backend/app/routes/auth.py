@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from app.accounts import mailer, session, store, verification
+from app.accounts import mailer, passwords, session, store, verification
 from app.models import Account, SearchHistoryItem
 
 router = APIRouter()
@@ -20,6 +20,19 @@ class RequestCodeBody(BaseModel):
 class VerifyBody(BaseModel):
     email: str
     code: str
+
+
+class LoginBody(BaseModel):
+    email: str
+    password: str
+
+
+class SetPasswordBody(BaseModel):
+    # None only valid when the account has no password set yet (first-time
+    # add) — checked in the route, not here, since that depends on account
+    # state Pydantic can't see.
+    current_password: str | None = None
+    new_password: str = Field(min_length=8)
 
 
 class UpdateProfileBody(BaseModel):
@@ -67,6 +80,43 @@ def verify(body: VerifyBody, response: Response) -> Account:
         return account
     except RuntimeError as exc:
         raise HTTPException(502, str(exc)) from exc
+
+
+@router.post("/api/auth/login", response_model=Account)
+def login(body: LoginBody, response: Response) -> Account:
+    # Optional alternative to the code flow — code-based sign-in keeps working
+    # unchanged regardless of whether a password is ever set. Generic 401 for
+    # every failure mode (unknown email, no password set, wrong password) so
+    # this endpoint can't be used to enumerate registered emails, matching
+    # request-code's existing "always 200" anti-enumeration stance.
+    try:
+        result = store.get_account_for_login(body.email)
+        if result is None:
+            raise HTTPException(401, "Invalid email or password")
+        account, password_hash = result
+        if password_hash is None or not passwords.verify_password(
+            body.password, password_hash
+        ):
+            raise HTTPException(401, "Invalid email or password")
+        session.issue_session_cookie(response, account.id)
+        return account
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@router.patch("/api/auth/password")
+def set_password(body: SetPasswordBody, account: AccountDep) -> dict[str, str]:
+    try:
+        current_hash = store.get_password_hash(account.id)
+        if current_hash is not None:
+            if body.current_password is None or not passwords.verify_password(
+                body.current_password, current_hash
+            ):
+                raise HTTPException(401, "Current password incorrect")
+        store.set_password(account.id, passwords.hash_password(body.new_password))
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"status": "ok"}
 
 
 @router.get("/api/auth/me", response_model=Account)

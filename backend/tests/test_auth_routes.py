@@ -185,3 +185,125 @@ def test_clear_history_reports_how_many_rows_went() -> None:
     assert response.status_code == 200
     assert response.json() == {"deleted": 3}
     assert store.delete_search_history.call_args.args == ("acc-1",)
+
+
+def test_login_success() -> None:
+    account = _account()
+    with (
+        patch(
+            "app.routes.auth.store.get_account_for_login",
+            return_value=(account, "somehash"),
+        ),
+        patch("app.routes.auth.passwords.verify_password", return_value=True),
+        patch("app.routes.auth.session.issue_session_cookie") as issue_cookie,
+    ):
+        response = client.post(
+            "/api/auth/login", json={"email": "a@b.com", "password": "correct-pw"}
+        )
+    assert response.status_code == 200
+    assert response.json()["id"] == "acc-1"
+    issue_cookie.assert_called_once()
+
+
+def test_login_401s_on_wrong_password() -> None:
+    account = _account()
+    with (
+        patch(
+            "app.routes.auth.store.get_account_for_login",
+            return_value=(account, "somehash"),
+        ),
+        patch("app.routes.auth.passwords.verify_password", return_value=False),
+    ):
+        response = client.post(
+            "/api/auth/login", json={"email": "a@b.com", "password": "wrong-pw"}
+        )
+    assert response.status_code == 401
+
+
+def test_login_401s_when_no_password_set() -> None:
+    account = _account()
+    with patch(
+        "app.routes.auth.store.get_account_for_login", return_value=(account, None)
+    ):
+        response = client.post(
+            "/api/auth/login", json={"email": "a@b.com", "password": "anything"}
+        )
+    assert response.status_code == 401
+
+
+def test_login_401s_on_unknown_email_with_same_message_as_wrong_password() -> None:
+    # No account-existence enumeration: unknown email and wrong password must
+    # be indistinguishable from the response.
+    with patch("app.routes.auth.store.get_account_for_login", return_value=None):
+        response = client.post(
+            "/api/auth/login", json={"email": "nobody@b.com", "password": "anything"}
+        )
+    assert response.status_code == 401
+    unknown_email_detail = response.json()["detail"]
+
+    account = _account()
+    with (
+        patch(
+            "app.routes.auth.store.get_account_for_login",
+            return_value=(account, "somehash"),
+        ),
+        patch("app.routes.auth.passwords.verify_password", return_value=False),
+    ):
+        response = client.post(
+            "/api/auth/login", json={"email": "a@b.com", "password": "wrong-pw"}
+        )
+    assert response.json()["detail"] == unknown_email_detail
+
+
+def test_set_password_first_time_does_not_require_current_password() -> None:
+    with _signed_in() as store:
+        store.get_password_hash.return_value = None
+        with patch("app.routes.auth.passwords.hash_password", return_value="new-hash"):
+            response = client.patch(
+                "/api/auth/password", json={"new_password": "longenough"}
+            )
+    assert response.status_code == 200
+    assert store.set_password.call_args.args == ("acc-1", "new-hash")
+
+
+def test_set_password_change_requires_correct_current_password() -> None:
+    with _signed_in() as store:
+        store.get_password_hash.return_value = "old-hash"
+        with (
+            patch("app.routes.auth.passwords.verify_password", return_value=True),
+            patch("app.routes.auth.passwords.hash_password", return_value="new-hash"),
+        ):
+            response = client.patch(
+                "/api/auth/password",
+                json={"current_password": "old-pw", "new_password": "longenough"},
+            )
+    assert response.status_code == 200
+    assert store.set_password.call_args.args == ("acc-1", "new-hash")
+
+
+def test_set_password_401s_on_wrong_current_password() -> None:
+    with _signed_in() as store:
+        store.get_password_hash.return_value = "old-hash"
+        with patch("app.routes.auth.passwords.verify_password", return_value=False):
+            response = client.patch(
+                "/api/auth/password",
+                json={"current_password": "wrong-pw", "new_password": "longenough"},
+            )
+    assert response.status_code == 401
+    store.set_password.assert_not_called()
+
+
+def test_set_password_401s_when_current_password_missing_but_required() -> None:
+    with _signed_in() as store:
+        store.get_password_hash.return_value = "old-hash"
+        response = client.patch(
+            "/api/auth/password", json={"new_password": "longenough"}
+        )
+    assert response.status_code == 401
+    store.set_password.assert_not_called()
+
+
+def test_set_password_422s_on_too_short_new_password() -> None:
+    with _signed_in():
+        response = client.patch("/api/auth/password", json={"new_password": "short"})
+    assert response.status_code == 422
