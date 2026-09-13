@@ -21,12 +21,18 @@ def record_search(request: Request, query: str, mode: str, result_count: int) ->
     try:
         account_id = session.read_session_cookie(request)
         with db.get_pool().connection() as conn:
+            # private is stamped from the account's setting as it stands right
+            # now, in the same statement — no extra round trip. Anonymous
+            # searches (account_id NULL) match no row, so COALESCE makes them
+            # public and they keep counting toward usage.
             conn.execute(
                 """
-                INSERT INTO searches (account_id, query, mode, result_count)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO searches (account_id, query, mode, result_count, private)
+                VALUES (%s, %s, %s, %s,
+                        COALESCE((SELECT NOT share_data FROM accounts WHERE id = %s),
+                                 false))
                 """,
-                (account_id, query, mode, result_count),
+                (account_id, query, mode, result_count, account_id),
             )
     except Exception:
         logger.exception("search analytics write failed")
@@ -46,18 +52,22 @@ def admin_stats() -> dict[str, Any]:
             "SELECT email, created_at FROM accounts ORDER BY created_at DESC LIMIT 50"
         ).fetchall()
         # count(account_id) skips NULLs, so it is exactly the signed-in count.
+        # Every search query here excludes private rows — that opt-out covers
+        # searches only, so the two accounts queries above are left alone.
         searches_row = conn.execute(
             """
             SELECT count(*),
                    count(*) FILTER (WHERE created_at > now() - interval '24 hours'),
                    count(account_id)
             FROM searches
+            WHERE NOT private
             """
         ).fetchone()
         top_queries = conn.execute(
             """
             SELECT query, count(*) AS n
             FROM searches
+            WHERE NOT private
             GROUP BY query
             ORDER BY n DESC
             LIMIT 20
@@ -68,6 +78,7 @@ def admin_stats() -> dict[str, Any]:
             SELECT s.created_at, s.query, s.mode, s.result_count, a.email
             FROM searches s
             LEFT JOIN accounts a ON a.id = s.account_id
+            WHERE NOT s.private
             ORDER BY s.created_at DESC
             LIMIT 50
             """

@@ -1,5 +1,7 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -89,3 +91,97 @@ def test_me_returns_account_when_valid() -> None:
         response = client.get("/api/auth/me")
     assert response.status_code == 200
     assert response.json()["id"] == "acc-1"
+
+
+@contextmanager
+def _signed_in(account: Account | None = None) -> Iterator[Mock]:
+    """Patch the two calls `current_account` makes; yield the store mock."""
+    store = Mock(get_account_by_id=Mock(return_value=account or _account()))
+    with (
+        patch("app.routes.auth.session.read_session_cookie", return_value="acc-1"),
+        patch("app.routes.auth.store", store),
+    ):
+        yield store
+
+
+def test_logout_expires_the_cookie() -> None:
+    response = client.post("/api/auth/logout")
+    assert response.status_code == 200
+    # The attributes must match issue_session_cookie or the browser keeps the
+    # live cookie and the user stays signed in despite the 200.
+    cookie = response.headers["set-cookie"]
+    assert "session=" in cookie
+    assert "Max-Age=0" in cookie
+    assert "Path=/" in cookie
+    assert "httponly" in cookie.lower()
+    assert "samesite=lax" in cookie.lower()
+
+
+def test_logout_succeeds_when_not_signed_in() -> None:
+    # Clearing a cookie nobody has is a no-op, not a 401.
+    assert client.post("/api/auth/logout").status_code == 200
+
+
+def test_patch_me_401s_without_cookie() -> None:
+    with patch("app.routes.auth.session.read_session_cookie", return_value=None):
+        response = client.patch("/api/auth/me", json={"share_data": False})
+    assert response.status_code == 401
+
+
+def test_history_401s_without_cookie() -> None:
+    with patch("app.routes.auth.session.read_session_cookie", return_value=None):
+        assert client.get("/api/auth/history").status_code == 401
+
+
+def test_clear_history_401s_without_cookie() -> None:
+    with patch("app.routes.auth.session.read_session_cookie", return_value=None):
+        assert client.delete("/api/auth/history").status_code == 401
+
+
+def test_patch_me_rejects_oversized_avatar() -> None:
+    huge = "data:image/jpeg;base64," + "A" * 200_000
+    with _signed_in():
+        response = client.patch("/api/auth/me", json={"avatar": huge})
+    assert response.status_code == 413
+
+
+def test_patch_me_rejects_non_image_avatar() -> None:
+    # The avatar is rendered into an <img src>, so this is a trust boundary.
+    with _signed_in():
+        response = client.patch("/api/auth/me", json={"avatar": "javascript:alert(1)"})
+    assert response.status_code == 400
+
+
+def test_patch_me_allows_empty_avatar_to_clear_it() -> None:
+    # "" is how the client removes a picture — it must not trip the prefix check.
+    with _signed_in() as store:
+        store.update_account.return_value = _account()
+        response = client.patch("/api/auth/me", json={"avatar": ""})
+    assert response.status_code == 200
+    assert store.update_account.call_args.args == ("acc-1", None, "", None)
+
+
+def test_patch_me_leaves_unsupplied_fields_alone() -> None:
+    # None reaches the COALESCE as "don't touch this column".
+    with _signed_in() as store:
+        store.update_account.return_value = _account()
+        response = client.patch("/api/auth/me", json={"share_data": False})
+    assert response.status_code == 200
+    assert store.update_account.call_args.args == ("acc-1", None, None, False)
+
+
+def test_history_returns_empty_list_for_a_new_account() -> None:
+    with _signed_in() as store:
+        store.get_search_history.return_value = []
+        response = client.get("/api/auth/history")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_clear_history_reports_how_many_rows_went() -> None:
+    with _signed_in() as store:
+        store.delete_search_history.return_value = 3
+        response = client.delete("/api/auth/history")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 3}
+    assert store.delete_search_history.call_args.args == ("acc-1",)

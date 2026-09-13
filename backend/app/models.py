@@ -55,3 +55,19 @@ class Account(BaseModel):
     id: str
     email: str
     created_at: datetime
+    # All three default, so every existing Account(...) construction site and
+    # every cached/serialised payload stays valid without edits.
+    display_name: str | None = None
+    # A data:image/ URL, resized client-side before upload. Capped in the route.
+    avatar: str | None = None
+    # False keeps searches out of the aggregate admin dashboard. They stay
+    # linked to the account either way, so personal history always works.
+    share_data: bool = True
+
+
+class SearchHistoryItem(BaseModel):
+    id: int
+    query: str
+    mode: str
+    result_count: int
+    created_at: datetime

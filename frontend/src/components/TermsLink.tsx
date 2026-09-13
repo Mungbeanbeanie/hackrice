@@ -18,7 +18,7 @@ const SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: "Getting it deleted",
-    body: "Ask, and we'll delete your account and its search history. Use the feedback link at the bottom of the home page; there is no automated delete button yet.",
+    body: "You can clear your own search history any time from your profile page. To delete the account itself, ask via the feedback link at the bottom of the home page — there is no automated button for that yet. Signing out clears your session cookie, but does not invalidate a copy of it, so sign out on shared devices.",
   },
   {
     title: "About the prices we show",

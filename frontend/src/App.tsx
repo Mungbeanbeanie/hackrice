@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, ArrowLeft, Search, User } from "lucide-react";
+import { AlertCircle, ArrowLeft, Search } from "lucide-react";
 
 import { getCurrentAccount, searchProducts } from "@/api/client";
 import type { Account, Group, Product, SearchResponse } from "@/api/client";
@@ -13,8 +13,11 @@ import SignInPage from "@/components/SignInPage";
 import ExtensionPanel from "@/components/ExtensionPanel";
 import CouponPanel from "@/components/CouponPanel";
 import HoneyDrop from "@/components/HoneyDrop";
+import AccountMenu from "@/components/AccountMenu";
+import ProfilePage from "@/components/ProfilePage";
+import SettingsPage from "@/components/SettingsPage";
 
-type Screen = "landing" | "app" | "signin" | "extension";
+type Screen = "landing" | "app" | "signin" | "extension" | "profile" | "settings";
 type AppState = "idle" | "loading" | "results" | "error";
 type View = "ranked" | "table";
 
@@ -168,6 +171,18 @@ export default function App() {
     goTo("signin");
   }
 
+  function handleSignedOut() {
+    setAccount(null);
+    goTo("landing");
+  }
+
+  // Both halves matter: runSearch forces screen="app" but never touches the
+  // query box, so without setQuery the header would still show the old search.
+  function rerun(q: string) {
+    setQuery(q);
+    runSearch(q);
+  }
+
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {
@@ -211,6 +226,10 @@ export default function App() {
           onSearch={runSearch}
           onGoSignin={goToSignIn}
           onGoExtension={() => goTo("extension")}
+          account={account}
+          onGoProfile={() => goTo("profile")}
+          onGoSettings={() => goTo("settings")}
+          onSignedOut={handleSignedOut}
         />
       )}
 
@@ -240,19 +259,13 @@ export default function App() {
                 loading={appState === "loading"}
                 onSearch={runSearch}
               />
-              <button
-                onClick={goToSignIn}
-                className="inline-flex items-center rounded-full border border-divider bg-transparent font-semibold text-text hover:bg-neutral-200 transition-colors cursor-pointer flex-shrink-0"
-                style={{ gap: "var(--space-2)", padding: "var(--space-1) var(--space-2) var(--space-1) var(--space-3)", fontSize: "13.5px" }}
-              >
-                {account ? account.email : "Sign in"}
-                <span
-                  className="rounded-full bg-accent-200 text-accent-800 inline-flex items-center justify-center"
-                  style={{ width: 26, height: 26 }}
-                >
-                  <User size={14} strokeWidth={2.75} />
-                </span>
-              </button>
+              <AccountMenu
+                account={account}
+                onSignIn={goToSignIn}
+                onProfile={() => goTo("profile")}
+                onSettings={() => goTo("settings")}
+                onSignedOut={handleSignedOut}
+              />
             </div>
           </header>
 
@@ -387,6 +400,40 @@ export default function App() {
           </main>
         </div>
       )}
+
+      {/* Both gate on `account` — a signed-out visitor deep-linking here gets
+          the sign-in form rather than a blank page. */}
+      {screen === "profile" &&
+        (account ? (
+          <ProfilePage account={account} onBack={() => goTo("app")} onRerun={rerun} />
+        ) : (
+          <SignInPage
+            onGoLanding={() => goTo("landing")}
+            onSignedIn={(acct) => {
+              setAccount(acct);
+              goTo("profile");
+            }}
+            onContinueAsGuest={() => goTo("landing")}
+          />
+        ))}
+
+      {screen === "settings" &&
+        (account ? (
+          <SettingsPage
+            account={account}
+            onBack={() => goTo("app")}
+            onSaved={setAccount}
+          />
+        ) : (
+          <SignInPage
+            onGoLanding={() => goTo("landing")}
+            onSignedIn={(acct) => {
+              setAccount(acct);
+              goTo("settings");
+            }}
+            onContinueAsGuest={() => goTo("landing")}
+          />
+        ))}
 
       {screen === "signin" && (
         <SignInPage

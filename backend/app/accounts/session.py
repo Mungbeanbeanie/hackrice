@@ -51,6 +51,24 @@ def issue_session_cookie(response: Response, account_id: str) -> None:
     )
 
 
+def clear_session_cookie(response: Response) -> None:
+    # Every attribute except max_age has to match issue_session_cookie above or
+    # the browser treats this as a different cookie and quietly keeps the live
+    # one — a logout that returns 200 and leaves the user signed in. Lives next
+    # to the issuing call for exactly that reason.
+    #
+    # Note this cannot revoke the token itself: sessions are stateless HMAC, so
+    # a copy of the cookie stays valid until its own expiry. Revocation would
+    # need a server-side session table.
+    response.delete_cookie(
+        COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=config.SESSION_COOKIE_SECURE,
+        samesite="lax",
+    )
+
+
 def read_session_cookie(request: Request) -> str | None:
     token = request.cookies.get(COOKIE_NAME)
     return verify_session_token(token) if token else None

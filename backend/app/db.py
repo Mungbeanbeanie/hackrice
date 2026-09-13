@@ -62,3 +62,20 @@ def init_schema() -> None:
             )
             """
         )
+        # Profile/settings columns. CREATE TABLE IF NOT EXISTS above is a no-op
+        # on a database that already has these tables, so new columns have to
+        # be added explicitly or they only ever exist on a fresh local DB.
+        # ADD COLUMN ... NOT NULL DEFAULT is metadata-only on PG 11+, so this
+        # does not rewrite the table.
+        conn.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS display_name TEXT")
+        conn.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS avatar TEXT")
+        conn.execute(
+            "ALTER TABLE accounts "
+            "ADD COLUMN IF NOT EXISTS share_data BOOLEAN NOT NULL DEFAULT true"
+        )
+        # Stamped per row at insert time, so flipping the account setting later
+        # never rewrites history in either direction.
+        conn.execute(
+            "ALTER TABLE searches "
+            "ADD COLUMN IF NOT EXISTS private BOOLEAN NOT NULL DEFAULT false"
+        )

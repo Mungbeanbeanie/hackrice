@@ -4,6 +4,8 @@ import { ArrowDown, ArrowRight, Check } from "lucide-react";
 import HoneyDrop from "@/components/HoneyDrop";
 import SearchBar from "@/components/SearchBar";
 import TermsLink from "@/components/TermsLink";
+import AccountMenu from "@/components/AccountMenu";
+import type { Account } from "@/api/client";
 
 interface Props {
   query: string;
@@ -11,6 +13,10 @@ interface Props {
   onSearch: (query: string) => void;
   onGoSignin: () => void;
   onGoExtension: () => void;
+  account: Account | null;
+  onGoProfile: () => void;
+  onGoSettings: () => void;
+  onSignedOut: () => void;
 }
 
 const EXAMPLES = ["purple harmony pillow", "sony wh-1000xm5", "dyson v15 detect"];
@@ -79,7 +85,17 @@ function ExampleThumb({
 // first. Replace with POST /api/feedback once there is somewhere to put it.
 const FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSf0WtkQRAguepMWqBOKYo-e3HQR2Ed6yip4oglBy49RQEGAkg/viewform?usp=publish-editor";
 
-export default function LandingPage({ query, onQueryChange, onSearch, onGoSignin, onGoExtension }: Props) {
+export default function LandingPage({
+  query,
+  onQueryChange,
+  onSearch,
+  onGoSignin,
+  onGoExtension,
+  account,
+  onGoProfile,
+  onGoSettings,
+  onSignedOut,
+}: Props) {
   return (
     <div>
       {/* Header */}
@@ -114,13 +130,13 @@ export default function LandingPage({ query, onQueryChange, onSearch, onGoSignin
             >
               Extension
             </a>
-            <button
-              onClick={onGoSignin}
-              className="inline-flex items-center rounded-full border border-divider bg-transparent font-heading text-text hover:bg-neutral-200 transition-colors cursor-pointer"
-              style={{ padding: "var(--space-2) var(--space-3)", fontSize: "14px" }}
-            >
-              Sign in
-            </button>
+            <AccountMenu
+              account={account}
+              onSignIn={onGoSignin}
+              onProfile={onGoProfile}
+              onSettings={onGoSettings}
+              onSignedOut={onSignedOut}
+            />
           </nav>
         </div>
       </header>

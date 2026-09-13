@@ -111,6 +111,25 @@ export interface Account {
   id: string;
   email: string;
   created_at: string;
+  display_name: string | null;
+  // A data: URL — resized client-side before it is ever sent.
+  avatar: string | null;
+  share_data: boolean;
+}
+
+export interface SearchHistoryItem {
+  id: number;
+  query: string;
+  mode: SearchMode;
+  result_count: number;
+  created_at: string;
+}
+
+// Only the supplied fields change; anything omitted is left as it was.
+export interface ProfilePatch {
+  display_name?: string;
+  avatar?: string;
+  share_data?: boolean;
 }
 
 export async function requestSignInCode(email: string): Promise<void> {
@@ -125,6 +144,26 @@ export async function verifySignInCode(email: string, code: string): Promise<Acc
     method: "POST",
     body: JSON.stringify({ email, code }),
   });
+}
+
+export async function signOut(): Promise<void> {
+  await apiFetch<{ status: string }>("/auth/logout", { method: "POST" });
+}
+
+export async function updateProfile(patch: ProfilePatch): Promise<Account> {
+  return apiFetch<Account>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function fetchSearchHistory(): Promise<SearchHistoryItem[]> {
+  return apiFetch<SearchHistoryItem[]>("/auth/history");
+}
+
+export async function clearSearchHistory(): Promise<number> {
+  const res = await apiFetch<{ deleted: number }>("/auth/history", { method: "DELETE" });
+  return res.deleted;
 }
 
 // Not signed in (401) is a normal state for most visitors, not an error —
