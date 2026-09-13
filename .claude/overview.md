@@ -252,9 +252,11 @@ top-ranked candidate's savings against the target's price — or its own price
 alone in Description Mode — plus its match score, name, brand/retailer, and
 rating); a **Cheapest option** card (the lowest price among all returned
 results, since everything shown has already cleared the Bayesian quality
-floor); and a **Coupons** card (Section 7) that stays idle until the user
-picks a candidate from the rails above, then looks up an active code for that
-candidate's retailer.
+floor); and a **Coupons & history** card (Section 7) that stays idle until the
+user picks a candidate from the rails above, then looks up an active code for
+that candidate's retailer and, beneath it in the same card, that listing's
+recorded price history (lowest observed price, and whether it is trending
+down — an observed direction, never a forecast).
 
 ### 5.1 Component Breakdown
 * **Search Bar:** One input for all three modes (Section 1.3) — no mode selector. The backend infers url / exact_product / description from the raw string; any non-empty string is valid input. Also runs a frontend-only ghost-suggestion autocomplete (`frontend/src/lib/autocomplete.ts` against a curated `frontend/src/data/brandSuggestions.ts` list) — Tab accepts the suggestion; purely client-side prefix matching, no backend involvement.
@@ -265,7 +267,7 @@ candidate's retailer.
 * **Comparison overlay:** Per-candidate spec breakdown against the reference product, with a five-value verdict chip per spec (`same`/`better`/`close`/`different`/`lower`) and a one-to-two sentence `rationale`.
 * **Landing, sign-in, profile, and settings surfaces:** Marketing/account surfaces outside the search+results flow — see `plan.md` Phase 10. The landing page's extension section hands over the real packaged extension as a download (`plan.md` Phase 16); the in-app mock panel that used to stand in for it is gone. Profile lists a signed-in user's past searches (re-runnable via `GET /api/auth/history`, clearable via `DELETE`); Settings edits display name, avatar (client-side cropped/resized before upload), and the `share_data` privacy toggle (Section 6.3). Both fall back to the sign-in screen when signed out, and neither is in `plan.md`'s phase checklist (see the closing note at the end of Section 6).
 * **Account menu:** Header pill — a sign-in button when signed out, or a menu (Profile / Settings / Log out) when signed in.
-* **Coupon panel:** Sidebar card (see the sidebar description above and Section 7) — looks up a candidate's retailer via `GET /api/coupons?store=` once the user selects it from the rails, shows the best active code/discount description/expiry when one exists, and estimates a savings figure with a text heuristic since the underlying feed carries no numeric discount field.
+* **Coupon panel:** Sidebar card titled "Coupons & history" (see the sidebar description above and Section 7) — looks up a candidate's retailer via `GET /api/coupons?store=` once the user selects it from the rails, shows the best active code/discount description/expiry when one exists, and estimates a savings figure with a text heuristic since the underlying feed carries no numeric discount field. Beneath the coupon result, the same card folds in `PriceHistoryPanel.tsx`: one `POST /api/price-history/view` per selection records the view as a price snapshot and returns the listing's lowest recorded price and observed trend, shown as two plain rows ("Lowest recorded", "Likely to drop" — Yes/No/Unclear from the trend). Below three snapshots it says there isn't enough history yet. No forecast, no projected date, no buy/wait verdict — by design.
 
 ---
 
@@ -302,5 +304,5 @@ Best-active-coupon lookup by retailer, layered on top of the core comparison pip
 * **Data source:** CouponAPI.org's periodic full CSV feed, loaded via `backend/app/coupons/loader.py`'s `load_feed(csv_path)` into a local `coupon_offers` Postgres table — upserted, keyed by `offer_id`, so re-running against a newer feed is idempotent. Automated feed retrieval is unconfirmed; the loader is invoked manually (`python -m app.coupons.loader <path>`).
 * **Selection:** `coupons/selector.py`'s `best_offer(store)` normalizes the retailer name to the feed's bare-domain form, filters out expired offers, and ranks by `rating` desc then `start_date` desc (`NULLS LAST`) as a recency tiebreak — returns the single best `CouponOffer` (`code`, `discount_description`, `store`, `expires_at`, `start_date`, `rating`) or `None`.
 * **API:** `GET /api/coupons?store={name}` (`routes/coupons.py`) — checks `cache.py`'s `get_cached_coupon` first, calls `best_offer` on a miss, caches a hit for 3600s (`set_cached_coupon`; a miss is never cached, since the underlying query is cheap and a coupon can appear between calls).
-* **UI:** `CouponPanel.tsx`, a sidebar card alongside the results (Section 5.1) — driven by whichever candidate the user selects from the rails, not automatically the target reference product; idle until one is chosen. The feed carries no numeric discount field, so the panel estimates a savings figure from the offer's text (a regex heuristic against strings like "15% off" or "$10 off") rather than computing one — an approximation, shown only when the pattern matches.
+* **UI:** `CouponPanel.tsx`, a sidebar card alongside the results (Section 5.1) — driven by whichever candidate the user selects from the rails, not automatically the target reference product; idle until one is chosen. The feed carries no numeric discount field, so the panel estimates a savings figure from the offer's text (a regex heuristic against strings like "15% off" or "$10 off") rather than computing one — an approximation, shown only when the pattern matches. The same card also hosts the price-history section (`PriceHistoryPanel.tsx`, Section 5.1) under a divider; the two lookups fetch independently off the same selection.
 * Same `plan.md` coverage gap as the closing note at the end of Section 6: the backend (loader/selector/route) is Phase 9; the panel that surfaces it in the UI shipped later with no phase entry.

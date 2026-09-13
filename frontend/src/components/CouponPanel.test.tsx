@@ -7,9 +7,10 @@ import type { CouponOffer, Product } from "@/api/client";
 vi.mock("@/api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/client")>()),
   fetchCoupon: vi.fn(),
+  viewPriceHistory: vi.fn(),
 }));
 
-const { fetchCoupon } = await import("@/api/client");
+const { fetchCoupon, viewPriceHistory } = await import("@/api/client");
 
 const product = (price: number): Product => ({
   id: "c1",
@@ -35,7 +36,21 @@ const offer = (description: string, code: string | null = "SAVE35"): CouponOffer
   rating: 2,
 });
 
-beforeEach(() => vi.mocked(fetchCoupon).mockReset());
+beforeEach(() => {
+  vi.mocked(fetchCoupon).mockReset();
+  // The folded history section fires its own fetch on selection; without a
+  // stub it would hit a real relative URL under jsdom.
+  vi.mocked(viewPriceHistory)
+    .mockReset()
+    .mockResolvedValue({
+      sufficient: false,
+      current: null,
+      low: null,
+      high: null,
+      pct_above_low: null,
+      trend: null,
+    });
+});
 // vite.config.ts sets no `globals: true` and no setup file, so Testing
 // Library's auto-cleanup never registers and renders stack up across tests.
 afterEach(cleanup);
@@ -79,11 +94,19 @@ describe("CouponPanel", () => {
     render(<CouponPanel product={null} />);
     expect(screen.getByText(/Pick any result/)).toBeTruthy();
     expect(fetchCoupon).not.toHaveBeenCalled();
+    expect(viewPriceHistory).not.toHaveBeenCalled();
   });
 
   it("reports an empty result without implying an error", async () => {
     vi.mocked(fetchCoupon).mockResolvedValue(null);
     render(<CouponPanel product={product(80)} />);
     expect(await screen.findByText(/No active codes/)).toBeTruthy();
+  });
+
+  it("folds the selected result's price history in under the coupon", async () => {
+    vi.mocked(fetchCoupon).mockResolvedValue(null);
+    render(<CouponPanel product={product(80)} />);
+    expect(await screen.findByText(/Not enough history yet/)).toBeTruthy();
+    expect(viewPriceHistory).toHaveBeenCalledTimes(1);
   });
 });

@@ -117,7 +117,7 @@ export default function ResultCard({
         style={{ fontSize: "12px" }}
       >
         <Ticket size={12} strokeWidth={2.75} />
-        {selected ? "Showing coupons →" : "Click to view coupons"}
+        {selected ? "Showing coupons & history →" : "Click to view coupons and history"}
       </span>
 
       {/* Both stop propagation: the whole card is a click target now, and

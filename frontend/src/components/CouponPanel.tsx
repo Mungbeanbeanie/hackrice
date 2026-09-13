@@ -3,6 +3,7 @@ import { Check, Copy, Ticket } from "lucide-react";
 
 import { fetchCoupon } from "@/api/client";
 import type { CouponOffer, Product } from "@/api/client";
+import PriceHistoryPanel from "@/components/PriceHistoryPanel";
 
 interface Props {
   product: Product | null;
@@ -85,12 +86,13 @@ export default function CouponPanel({ product }: Props) {
     >
       <p className="uppercase text-neutral-700 font-bold flex items-center gap-2" style={KICKER}>
         <Ticket size={13} strokeWidth={2.75} />
-        Coupons
+        Coupons & history
       </p>
 
       {state.status === "idle" && (
         <p className="text-neutral-700" style={{ fontSize: "13.5px", margin: 0 }}>
-          Pick any result to check for an active code at that retailer.
+          Pick any result to check for an active code at that retailer and see how its price
+          has moved.
         </p>
       )}
 
@@ -164,6 +166,17 @@ export default function CouponPanel({ product }: Props) {
             </p>
           )}
         </>
+      )}
+
+      {/* Same selection drives both lookups; they fetch independently, so a
+          slow coupon feed never holds the history back (or vice versa). */}
+      {product && (
+        <div
+          className="border-divider"
+          style={{ marginTop: "var(--space-4)", paddingTop: "var(--space-3)", borderTopWidth: 1, borderTopStyle: "solid" }}
+        >
+          <PriceHistoryPanel product={product} />
+        </div>
       )}
     </div>
   );

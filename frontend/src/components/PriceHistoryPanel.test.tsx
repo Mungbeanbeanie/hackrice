@@ -42,47 +42,41 @@ beforeEach(() => vi.mocked(viewPriceHistory).mockReset());
 afterEach(cleanup);
 
 describe("PriceHistoryPanel", () => {
-  it("prompts for a selection before anything is picked", () => {
-    render(<PriceHistoryPanel product={null} />);
-    expect(screen.getByText(/Pick any result/)).toBeTruthy();
-    expect(viewPriceHistory).not.toHaveBeenCalled();
-  });
-
   it("says there isn't enough history yet, below the 3-snapshot threshold", async () => {
     vi.mocked(viewPriceHistory).mockResolvedValue({ sufficient: false } as PriceHistorySummary);
     render(<PriceHistoryPanel product={product(42)} />);
     expect(await screen.findByText(/Not enough history yet/)).toBeTruthy();
   });
 
-  it("shows the recorded-low positioning once there's enough history", async () => {
+  it("shows the recorded low and how far above it the price sits", async () => {
     vi.mocked(viewPriceHistory).mockResolvedValue(summary({ pct_above_low: 10, low: 38 }));
     render(<PriceHistoryPanel product={product(42)} />);
-    expect(await screen.findByText(/10% above its recorded low of \$38\.00/)).toBeTruthy();
+    expect(await screen.findByText(/\$38\.00/)).toBeTruthy();
+    expect(screen.getByText("10% above it now")).toBeTruthy();
   });
 
-  it("says 'at its recorded low' rather than '0% above'", async () => {
+  it("says 'at it right now' rather than '0% above'", async () => {
     vi.mocked(viewPriceHistory).mockResolvedValue(summary({ pct_above_low: 0, current: 38, low: 38 }));
     render(<PriceHistoryPanel product={product(38)} />);
-    expect(await screen.findByText("At its recorded low")).toBeTruthy();
+    expect(await screen.findByText("at it right now")).toBeTruthy();
   });
 
-  it("never claims a trend when the direction is flat", async () => {
+  it("never claims a drop when the direction is flat", async () => {
     vi.mocked(viewPriceHistory).mockResolvedValue(summary({ trend: "flat" }));
     render(<PriceHistoryPanel product={product(42)} />);
-    await screen.findByText(/recorded low/);
-    expect(screen.queryByText(/Trending/)).toBeNull();
+    expect(await screen.findByText("Unclear — holding flat")).toBeTruthy();
   });
 
-  it("shows a trend direction when one exists", async () => {
+  it("reads a downward trend as likely to drop", async () => {
     vi.mocked(viewPriceHistory).mockResolvedValue(summary({ trend: "down" }));
     render(<PriceHistoryPanel product={product(42)} />);
-    expect(await screen.findByText(/Trending down/)).toBeTruthy();
+    expect(await screen.findByText("Yes — trending down")).toBeTruthy();
   });
 
   it("records a view once per selected product, not on every render", async () => {
     vi.mocked(viewPriceHistory).mockResolvedValue(summary());
     render(<PriceHistoryPanel product={product(42)} />);
-    await screen.findByText(/recorded low/);
+    await screen.findByText(/Lowest recorded/);
     expect(viewPriceHistory).toHaveBeenCalledTimes(1);
     expect(viewPriceHistory).toHaveBeenCalledWith(
       "Contour Pillow",
