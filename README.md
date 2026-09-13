@@ -1,5 +1,7 @@
 # hackrice
 
+Hosted at: https://nectarly.us/
+
 FastAPI backend, React frontend, deployed to Vultr.
 
 ## Layout
@@ -84,29 +86,7 @@ swapping the bundler or test runner means editing `package.json`, not the workfl
 | `dev` | staging instance |
 | `main` | production instance |
 
-Deploy runs in the same workflow as CI and `needs` both check jobs, so a failing
-test blocks the deploy. Images are tagged with the commit SHA — rollback is
-editing one line in `.env` on the box, not a rebuild.
-
 Setup, secrets, rollback and the migration story: [deploy/README.md](deploy/README.md).
-
-Branch protection is **not** enabled yet — CI reports but does not block merges.
-To turn it on, add a ruleset under **Settings → Rules** targeting `main` and `dev`
-requiring a PR and the `backend` and `frontend` checks.
-
-## Not set up yet
-
-- **No domain**, so the app serves plain HTTP on the instance IP. One variable
-  and a DNS record gets HTTPS; see the runbook.
-- **No database usage.** A Managed Postgres cluster is provisioned and
-  `DATABASE_URL` reaches the container, but nothing reads it — there is no data
-  model yet, so there is no ORM and no migration tool either.
-
-  Stale as of Phase 8: `app/db.py` reads `DATABASE_URL` and creates the
-  `accounts` / `verification_codes` tables on startup. Still no ORM or migration
-  tool — see [deploy/README.md](deploy/README.md) §6 for when that stops being
-  enough. Locally, point it at a throwaway container rather than at the managed
-  cluster (whose trusted-sources list would need your home IP):
 
   ```sh
   docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=dev postgres:17-alpine
