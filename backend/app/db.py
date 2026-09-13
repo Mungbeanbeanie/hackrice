@@ -79,3 +79,24 @@ def init_schema() -> None:
             "ALTER TABLE searches "
             "ADD COLUMN IF NOT EXISTS private BOOLEAN NOT NULL DEFAULT false"
         )
+        # Shared/product-keyed, not account-tied — one row per view of a
+        # specific listing, written only when a candidate is clicked/selected,
+        # never on search. source distinguishes real click-triggered rows from
+        # manually-seeded historical rows (price_history/loader.py).
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS price_snapshots (
+                id BIGSERIAL PRIMARY KEY,
+                product_key TEXT NOT NULL,
+                title TEXT NOT NULL,
+                store TEXT NOT NULL,
+                price NUMERIC NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                source TEXT NOT NULL DEFAULT 'click'
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS price_snapshots_product_key_idx "
+            "ON price_snapshots (product_key)"
+        )

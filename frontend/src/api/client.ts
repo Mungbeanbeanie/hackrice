@@ -107,6 +107,31 @@ export async function fetchCoupon(store: string): Promise<CouponOffer | null> {
   return apiFetch<CouponOffer | null>(`/coupons?store=${encodeURIComponent(store)}`);
 }
 
+// Mirrors backend/app/price_history/models.py.
+export interface PriceHistorySummary {
+  sufficient: boolean;
+  current: number | null;
+  low: number | null;
+  high: number | null;
+  pct_above_low: number | null;
+  trend: "up" | "down" | "flat" | null;
+}
+
+// Records a click-triggered snapshot for this exact listing and returns
+// whatever history exists in one round trip. Only called when a candidate is
+// selected — never on search.
+export async function viewPriceHistory(
+  title: string,
+  brand: string,
+  store: string,
+  price: number,
+): Promise<PriceHistorySummary> {
+  return apiFetch<PriceHistorySummary>("/price-history/view", {
+    method: "POST",
+    body: JSON.stringify({ title, brand, store, price }),
+  });
+}
+
 export interface Account {
   id: string;
   email: string;

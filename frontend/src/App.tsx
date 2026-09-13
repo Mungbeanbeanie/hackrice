@@ -10,6 +10,7 @@ import SpecBreakdownModal from "@/components/SpecBreakdownModal";
 import LandingPage from "@/components/LandingPage";
 import SignInPage from "@/components/SignInPage";
 import CouponPanel from "@/components/CouponPanel";
+import PriceHistoryPanel from "@/components/PriceHistoryPanel";
 import HoneyDrop from "@/components/HoneyDrop";
 import AccountMenu from "@/components/AccountMenu";
 import ProfilePage from "@/components/ProfilePage";
@@ -385,6 +386,8 @@ export default function App() {
                         </div>
                       </div>
                     )}
+
+                    <PriceHistoryPanel product={couponProduct} />
 
                     <CouponPanel product={couponProduct} />
                   </aside>
