@@ -10,9 +10,11 @@ __pycache__/
 node_modules/
 dist/
 
-# extension/ build output (esbuild --outdir=. produces these at the package root)
+# extension/ build output (build.mjs's esbuild call produces these at the
+# package root; manifest.json is generated from manifest.template.json)
 extension/content.js
 extension/background.js
+extension/manifest.json
 
 # Env / secrets
 .env

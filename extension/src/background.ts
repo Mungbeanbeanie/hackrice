@@ -1,6 +1,4 @@
-// Dev default — no real deploy IP/domain exists yet (deploy/README.md: both
-// boxes are bare IP, no TLS). Update once one does; not fabricated here.
-const API_BASE_URL = "http://localhost:8000";
+// API_BASE_URL comes from build.mjs's esbuild `define` (see src/global.d.ts).
 
 interface SearchMessage {
   type: "search";

@@ -2,9 +2,7 @@ import { extractProduct, isCheckoutTrigger } from "./detect";
 import { renderError, renderLoading, renderResults } from "./popup";
 import type { PopupProduct } from "./popup";
 
-// Dev default (Vite's own port) — no real deploy domain exists yet
-// (deploy/README.md: both boxes are bare IP, no TLS). Update once one does.
-const WEBAPP_URL = "http://localhost:5173";
+// WEBAPP_URL comes from build.mjs's esbuild `define` (see src/global.d.ts).
 
 interface SearchApiProduct {
   short: string;

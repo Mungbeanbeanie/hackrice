@@ -288,6 +288,43 @@ Doing it before `up -d` means the new schema is in place before new code serves
 traffic. It also means a failed migration aborts the deploy instead of leaving
 containers running against a schema they do not understand.
 
+## 7. Browser extension
+
+Not part of the Docker Compose deploy above — a Manifest V3 Chrome extension
+built and loaded separately. See `.claude/plan.md` Phase 14/15 for how it
+works; this section is just build + load.
+
+Build it from `extension/`:
+
+```sh
+EXTENSION_API_BASE_URL=https://<api-origin> \
+EXTENSION_WEBAPP_URL=https://<webapp-origin> \
+npm run build
+```
+
+Both env vars default to `localhost` (`:8000`/`:5173`) if unset — fine for
+local dev against `docker compose up` or `uvicorn`/`vite dev`, wrong for
+anything installed against a deployed box. Set both to the real origins once
+step 4 above gives this project a domain; until then there is no correct
+non-localhost value to put here, so don't guess one.
+
+`build.mjs` derives `manifest.json`'s `host_permissions` from
+`EXTENSION_API_BASE_URL`'s origin automatically (via
+`manifest.template.json`) — there is no separate manifest edit per
+environment.
+
+Load the built extension in Chrome: `chrome://extensions` → enable
+**Developer mode** → **Load unpacked** → select the `extension/` directory.
+
+No backend change is needed as the extension's origin changes:
+`backend/app/main.py`'s `CORSMiddleware` matches any `chrome-extension://*`
+origin generically (`allow_origin_regex`), not one specific origin.
+
+**Caveat, not solved here:** an unpacked install's extension ID differs from
+the ID a Chrome Web Store listing would get. This section covers "build and
+load unpacked" only — Web Store submission (review, listing, a stable public
+ID) is separate work, out of scope.
+
 ## Known ceilings
 
 Deliberate simplifications. Each is fine now and has an obvious upgrade when it
