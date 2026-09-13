@@ -1,5 +1,7 @@
+import json
 import re
 import statistics
+from pathlib import Path
 
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
@@ -77,106 +79,11 @@ def _is_url(raw_input: str) -> bool:
     )
 
 
-# Curated, not exhaustive — any brand or product line not on this list is
-# invisible to the exact_product escalation below and the query stays in the
-# safe default (description). Needs maintaining as new names come up.
-#
-# Generic-English words are qualified with their parent brand ("samsung
-# galaxy", not bare "galaxy") to avoid false-positiving on unrelated queries;
-# genuinely unambiguous ones stay bare.
-_BRAND_NAMES = frozenset(
-    {
-        "purple",
-        "casper",
-        "tempur-pedic",
-        "sealy",
-        "serta",
-        "saatva",
-        "leesa",
-        "nectar",
-        "tuft & needle",
-        "sleep number",
-        "apple",
-        "samsung",
-        "sony",
-        "lg",
-        "bose",
-        "jbl",
-        "beats",
-        "sonos",
-        "logitech",
-        "anker",
-        "garmin",
-        "fitbit",
-        "gopro",
-        "canon",
-        "nikon",
-        "dell",
-        "hp",
-        "lenovo",
-        "microsoft",
-        "google",
-        "asus",
-        "acer",
-        "roku",
-        "amazon",
-        "dyson",
-        "shark",
-        "whirlpool",
-        "kitchenaid",
-        "cuisinart",
-        "instant pot",
-        "ninja",
-        "keurig",
-        "vitamix",
-        "black+decker",
-        "dewalt",
-        "bosch",
-        "philips",
-        "panasonic",
-        "irobot",
-        "roomba",
-        "nike",
-        "adidas",
-        "under armour",
-        "the north face",
-        "patagonia",
-        "levi's",
-        "reebok",
-        "new balance",
-        "puma",
-        "vans",
-        "columbia",
-        "yeti",
-        "coleman",
-        "igloo",
-        # Product-line names people search without the maker's name.
-        "iphone",
-        "ipad",
-        "macbook",
-        "airpods",
-        "apple watch",
-        "imac",
-        "samsung galaxy",
-        "playstation",
-        "ps5",
-        "ps4",
-        "xbox",
-        "surface pro",
-        "surface laptop",
-        "chromebook",
-        "google pixel",
-        "google nest",
-        "kindle",
-        "alexa",
-        "amazon echo",
-        "thinkpad",
-        "nintendo switch",
-        "nintendo",
-        "walkman",
-        "quietcomfort",
-    }
-)
+_BRAND_NAMES_PATH = Path(__file__).resolve().parent.parent / "brand_names.json"
+# Curated, not exhaustive — any brand or product line not in that file is
+# invisible to the exact_product escalation below and the query stays in
+# the safe default (description). Edit the JSON file directly to expand it.
+_BRAND_NAMES: frozenset[str] = frozenset(json.loads(_BRAND_NAMES_PATH.read_text()))
 _BRAND_PATTERN = re.compile(
     r"\b(?:"
     + "|".join(re.escape(b) for b in sorted(_BRAND_NAMES, key=len, reverse=True))

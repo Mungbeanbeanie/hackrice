@@ -1,5 +1,7 @@
 import { ArrowRight, Search } from "lucide-react";
 
+import { getSuggestion } from "@/lib/autocomplete";
+
 interface Props {
   value: string;
   onChange: (value: string) => void;
@@ -17,6 +19,8 @@ const PLACEHOLDER = "Paste a link, name a product, or describe what you need";
 
 export default function SearchBar({ value, onChange, loading, onSearch, variant = "compact" }: Props) {
   const hero = variant === "hero";
+  const suggestion = getSuggestion(value);
+  const suffix = suggestion ? suggestion.slice(value.length) : "";
 
   return (
     <form
@@ -41,14 +45,32 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
         }}
       >
         <Search size={hero ? 19 : 17} color="var(--color-accent)" strokeWidth={2.75} className="flex-shrink-0" />
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={PLACEHOLDER}
-          disabled={loading}
-          className="flex-1 min-w-0 bg-transparent outline-none text-text"
-          style={{ fontSize: hero ? "15px" : "14.5px", padding: "var(--space-2) 0" }}
-        />
+        <div className="relative flex-1 min-w-0">
+          {suffix && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 flex items-center whitespace-pre pointer-events-none"
+              style={{ fontSize: hero ? "15px" : "14.5px", padding: "var(--space-2) 0" }}
+            >
+              <span style={{ visibility: "hidden" }}>{value}</span>
+              <span className="text-neutral-500">{suffix}</span>
+            </div>
+          )}
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Tab" && suffix) {
+                e.preventDefault();
+                onChange(value + suffix);
+              }
+            }}
+            placeholder={PLACEHOLDER}
+            disabled={loading}
+            className="relative w-full bg-transparent outline-none text-text"
+            style={{ fontSize: hero ? "15px" : "14.5px", padding: "var(--space-2) 0" }}
+          />
+        </div>
         <button
           type="submit"
           disabled={!value.trim() || loading}
