@@ -102,7 +102,9 @@ export default function LandingPage({
   onSignedOut,
 }: Props) {
   return (
-    <div>
+    // relative: HoneyBackdrop is absolute and sizes itself to this div, so the
+    // drips run the page's full height instead of stopping at one viewport.
+    <div className="relative">
       <HoneyBackdrop />
       {/* Header */}
       {/* bg-bg/75, not bg-bg: an opaque header hid the honey pool, and the

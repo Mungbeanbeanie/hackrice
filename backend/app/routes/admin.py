@@ -119,41 +119,56 @@ p.muted { background: none; border: 0; color: var(--n-500); padding: .9rem; }
 
 /* Honey backdrop. Absolute at the document's top, so it scrolls away with the
    page; z-index -1 paints above the body background but under every in-flow
-   element, so the drips run behind the cards. The layer is one viewport tall,
-   so the bottom fade dissolves falling drops instead of clipping them at a
-   hard line once the page is scrolled. */
-.honey { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1;
-         pointer-events: none; opacity: .72;
-         -webkit-mask-image: linear-gradient(#000 70%, transparent);
-         mask-image: linear-gradient(#000 70%, transparent); }
+   element, so the drips run behind the cards. html is the positioned ancestor
+   (body is capped at 62rem), so the layer spans the full document and drops
+   keep falling through the second viewport; the mask dissolves them between
+   120vh and 180vh from the top — or at the layer's own bottom edge on a page
+   shorter than that, so a drop is never cut off at a hard line. */
+html { position: relative; }
+.honey { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 100vh;
+         z-index: -1; pointer-events: none; opacity: .72;
+         -webkit-mask-image: linear-gradient(#000 calc(min(100%, 180vh) - 60vh),
+                                             transparent min(100%, 180vh));
+         mask-image: linear-gradient(#000 calc(min(100%, 180vh) - 60vh),
+                                     transparent min(100%, 180vh)); }
+/* One curve per phase, never a chain of short linear legs: a leg has one
+   constant speed, so every keyframe between legs is a visible jolt. The
+   shorthand's linear is only the default for the necking leg, which has to
+   carry the growth curve's end velocity unchanged into the release. */
 .strand { transform-box: fill-box; transform-origin: 50% 0;
-          animation: strand var(--t) var(--d) infinite; }
+          animation: strand var(--t) var(--d) linear infinite; }
 .bulb { transform-box: fill-box; transform-origin: 50% 50%;
         transform: translateY(var(--l));
-        animation: bulb var(--t) var(--d) infinite; }
-/* One cycle: the strand stretches from the pool while the bulb swells at its
-   tip (0-50%), the neck thins and creeps a little further (50-56%), then it
-   snaps: the thread recoils fast and beads up while the bulb free-falls
-   (56-61%), the stub sinks slowly back into the pool (61-76%), and everything
-   sits hidden inside the pool until the next cycle. The recoil MUST start fast
-   and decelerate — an ease-in here reads as the thread freezing mid-air. */
+        animation: bulb var(--t) var(--d) linear infinite; }
+/* One cycle. 0-48%: the strand sags out of the pool with the bulb swelling at
+   its tip on a gently accelerating curve (end slope 1.6 x mean, i.e. .03 x --l
+   per 1% of the cycle). 48-56%: necking — the tip keeps exactly that speed
+   while the thread thins to 70% width; real drips never slow before pinch-off.
+   56%: release. The strand recoils on one steep ease-out (half its length in
+   the first ~9% of the leg) and sinks into the pool by 86% without ever
+   stopping. The bulb falls on a single constant-acceleration curve, y = k·s
+   + (1-k)·s² with k = .22, which the bezier (1/3, k/3, 2/3, (1+k)/3) encodes
+   exactly: its start speed is the tip's, and it only ever gains from there —
+   no kink a second in. 86-100%: rest; the bulb, long since faded by the mask,
+   snaps home via step-end. Both lists share keyframes and curves through 56%
+   so the bulb stays glued to the strand's tip. */
 @keyframes strand {
   0%   { transform: scale(1, 0);
-         animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
-  50%  { transform: scale(1, 1); animation-timing-function: ease-in; }
-  56%  { transform: scale(.7, 1.08);
-         animation-timing-function: cubic-bezier(.1, .9, .2, 1); }
-  61%  { transform: scale(.95, .3); animation-timing-function: ease-in-out; }
-  76%, 100% { transform: scale(1, 0); }
+         animation-timing-function: cubic-bezier(.4, .12, .7, .52); }
+  48%  { transform: scale(.9, .88); }
+  56%  { transform: scale(.7, 1.12);
+         animation-timing-function: cubic-bezier(.05, .7, .2, 1); }
+  86%, 100% { transform: scale(1, 0); }
 }
 @keyframes bulb {
   0%   { transform: translateY(0) scale(.5);
-         animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
-  50%  { transform: translateY(var(--l)) scale(1); animation-timing-function: ease-in; }
-  56%  { transform: translateY(calc(var(--l) * 1.08)) scale(1);
-         animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
+         animation-timing-function: cubic-bezier(.4, .12, .7, .52); }
+  48%  { transform: translateY(calc(var(--l) * .88)) scale(1); }
+  56%  { transform: translateY(calc(var(--l) * 1.12)) scale(1);
+         animation-timing-function: cubic-bezier(.33, .073, .67, .407); }
   /* step-end: snap back into the pool while off-screen, never mid-frame. */
-  86%  { transform: translateY(110vh) scale(1); animation-timing-function: step-end; }
+  86%  { transform: translateY(calc(var(--l) * 2.06 + 165vh)) scale(1);
+         animation-timing-function: step-end; }
   100% { transform: translateY(0) scale(.5); }
 }
 @media (prefers-reduced-motion: reduce) {
