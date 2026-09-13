@@ -100,3 +100,26 @@ def init_schema() -> None:
             "CREATE INDEX IF NOT EXISTS price_snapshots_product_key_idx "
             "ON price_snapshots (product_key)"
         )
+        # Optional, additive login method — existing code-based accounts are
+        # unaffected, password_hash just stays NULL until someone opts in.
+        conn.execute("ALTER TABLE accounts ADD COLUMN IF NOT EXISTS password_hash TEXT")
+        # One row per (account, listing) — saving twice updates price/title/
+        # image in place rather than duplicating, and keeps the original
+        # created_at (when the user first saved it).
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS saved_products (
+                id SERIAL PRIMARY KEY,
+                account_id UUID NOT NULL REFERENCES accounts(id),
+                product_key TEXT NOT NULL,
+                title TEXT NOT NULL,
+                brand TEXT NOT NULL,
+                store TEXT NOT NULL,
+                price NUMERIC,
+                image_url TEXT,
+                product_url TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                UNIQUE (account_id, product_key)
+            )
+            """
+        )

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import autocomplete, db
-from app.routes import admin, auth, coupons, price_history, search
+from app.routes import admin, auth, coupons, price_history, saved_products, search
 from app.routes import autocomplete as autocomplete_routes
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ app.include_router(coupons.router)
 app.include_router(price_history.router)
 app.include_router(admin.router)
 app.include_router(autocomplete_routes.router)
+app.include_router(saved_products.router)
 
 
 @app.get("/api/health")

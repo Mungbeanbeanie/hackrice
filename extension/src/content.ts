@@ -31,6 +31,22 @@ function toPopupProduct(p: SearchApiProduct): PopupProduct {
   return { short: p.short, price: p.price, matchScore: p.matchScore, rating: p.rating, image: p.image };
 }
 
+// Same value/rationale as frontend/src/api/client.ts's SEARCH_TIMEOUT_MS —
+// same backend endpoint, cold search measured at 38-71s.
+const SEARCH_TIMEOUT_MS = 130_000;
+
+// Guards two failure modes: (1) two overlapping clicks resolving out of
+// order — extractProduct(document) is page-level, so this mostly shows up as
+// a redundant duplicate search rather than a wrong product, except on an SPA
+// storefront that rewrites title/meta between clicks without a full
+// navigation, where it can genuinely be a different product; (2)
+// background.ts's fetch never responding at all. The timeout lives here,
+// not in background.ts, because a killed/idle-terminated MV3 service worker
+// would take a timer inside itself down too — content.ts is the side whose
+// UI is actually stuck, so it can't depend on background.ts always getting
+// to run.
+let latestRequestId = 0;
+
 document.addEventListener(
   "click",
   (event) => {
@@ -39,10 +55,20 @@ document.addEventListener(
     const { title } = extractProduct(document);
     if (!title) return;
 
+    const requestId = ++latestRequestId;
     renderLoading();
+
+    const timer = window.setTimeout(() => {
+      if (requestId !== latestRequestId) return;
+      renderError("Search timed out. Try again.");
+    }, SEARCH_TIMEOUT_MS);
+
     chrome.runtime.sendMessage(
       { type: "search", title },
       (response: SearchMessageResponse | undefined) => {
+        window.clearTimeout(timer);
+        if (requestId !== latestRequestId) return;
+
         if (chrome.runtime.lastError || !response?.ok || !response.data) {
           renderError("Couldn't reach nectarly right now.");
           return;

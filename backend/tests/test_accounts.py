@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from app import config, db
-from app.accounts import mailer, session
+from app.accounts import mailer, passwords, session
 
 
 def test_create_and_verify_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -101,3 +101,24 @@ def test_get_pool_raises_when_database_url_unset(
     monkeypatch.setattr(db, "_pool", None)
     with pytest.raises(RuntimeError, match="DATABASE_URL is not set"):
         db.get_pool()
+
+
+def test_password_hash_verify_round_trip() -> None:
+    hashed = passwords.hash_password("correct-password")
+    assert passwords.verify_password("correct-password", hashed)
+
+
+def test_password_verify_fails_on_wrong_password() -> None:
+    hashed = passwords.hash_password("correct-password")
+    assert not passwords.verify_password("wrong-password", hashed)
+
+
+def test_password_verify_returns_false_not_raise_on_malformed_stored_value() -> None:
+    assert passwords.verify_password("anything", "not-a-valid-stored-hash") is False
+    assert passwords.verify_password("anything", "") is False
+
+
+def test_password_hash_salts_differ_for_same_password() -> None:
+    first = passwords.hash_password("same-password")
+    second = passwords.hash_password("same-password")
+    assert first != second
