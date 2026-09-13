@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
 
+import { getAutocomplete } from "@/api/client";
 import { getSuggestion } from "@/lib/autocomplete";
 
 interface Props {
@@ -22,6 +24,39 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
   const suggestion = getSuggestion(value);
   const suffix = suggestion ? suggestion.slice(value.length) : "";
 
+  // True search-as-you-type dropdown, additive alongside the ghost suffix
+  // above — separate state, separate data source (backend Trie over real
+  // search history + curated guesses, not the frontend-only curated list).
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [highlighted, setHighlighted] = useState(-1);
+  const [focused, setFocused] = useState(false);
+  const dropdownVisible = focused && suggestions.length > 0;
+
+  useEffect(() => {
+    if (!value.trim()) {
+      setSuggestions([]);
+      setHighlighted(-1);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      getAutocomplete(value)
+        .then((results) => {
+          setSuggestions(results);
+          setHighlighted(-1);
+        })
+        .catch(() => setSuggestions([]));
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [value]);
+
+  function handleSelect(term: string) {
+    onChange(term);
+    setSuggestions([]);
+    setHighlighted(-1);
+    setFocused(false);
+    onSearch(term);
+  }
+
   return (
     <form
       onSubmit={(e) => {
@@ -34,6 +69,7 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
       className={hero ? "w-full" : "flex-1 min-w-[200px] max-sm:order-last max-sm:basis-full"}
       style={hero ? { maxWidth: "560px" } : undefined}
     >
+      <div className="relative">
       <div
         className="flex items-center rounded-full bg-neutral-100 border border-divider"
         style={{
@@ -59,10 +95,33 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
           <input
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             onKeyDown={(e) => {
               if (e.key === "Tab" && suffix) {
                 e.preventDefault();
                 onChange(value + suffix);
+                return;
+              }
+              if (!dropdownVisible) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setHighlighted((h) => Math.min(h + 1, suggestions.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setHighlighted((h) => Math.max(h - 1, -1));
+              } else if (e.key === "Enter" && highlighted >= 0) {
+                // Only intercepts Enter when a row is highlighted — otherwise
+                // falls through to the form's own submit (or the ghost
+                // suffix's own Tab-accept above), unchanged.
+                const term = suggestions[highlighted];
+                if (term) {
+                  e.preventDefault();
+                  handleSelect(term);
+                }
+              } else if (e.key === "Escape") {
+                setFocused(false);
+                setHighlighted(-1);
               }
             }}
             placeholder={PLACEHOLDER}
@@ -93,6 +152,31 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
             "Search"
           )}
         </button>
+      </div>
+      {dropdownVisible && (
+        <ul
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-10 rounded-lg border border-divider bg-bg shadow-md overflow-hidden"
+          style={{ marginTop: "var(--space-1)" }}
+        >
+          {suggestions.map((term, i) => (
+            <li
+              key={term}
+              role="option"
+              aria-selected={i === highlighted}
+              // Fires before the input's blur, so clicking a row doesn't
+              // close the dropdown before onClick runs.
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setHighlighted(i)}
+              onClick={() => handleSelect(term)}
+              className={i === highlighted ? "bg-neutral-100 cursor-pointer" : "cursor-pointer"}
+              style={{ padding: "var(--space-2) var(--space-4)", fontSize: "14px" }}
+            >
+              {term}
+            </li>
+          ))}
+        </ul>
+      )}
       </div>
     </form>
   );

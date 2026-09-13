@@ -200,3 +200,13 @@ export async function getCurrentAccount(): Promise<Account | null> {
     return null;
   }
 }
+
+// Additive alongside SearchBar's existing single-match ghost suggestion
+// (lib/autocomplete.ts) — this powers a separate ranked dropdown, backed by
+// the backend's Trie (app/autocomplete.py), not a replacement for it.
+export async function getAutocomplete(prefix: string): Promise<string[]> {
+  const res = await apiFetch<{ suggestions: string[] }>(
+    `/autocomplete?q=${encodeURIComponent(prefix)}`,
+  );
+  return res.suggestions;
+}

@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import db
+from app import autocomplete, db
 from app.routes import admin, auth, coupons, price_history, search
+from app.routes import autocomplete as autocomplete_routes
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.exception(
             "Accounts DB schema bootstrap failed — /api/auth/* will 502 until fixed"
         )
+    # Never raises (see autocomplete.refresh's docstring) — a failure here just
+    # means the autocomplete trie stays seed-only, same as the bootstrap above.
+    autocomplete.refresh()
     yield
 
 
@@ -40,6 +44,7 @@ app.include_router(auth.router)
 app.include_router(coupons.router)
 app.include_router(price_history.router)
 app.include_router(admin.router)
+app.include_router(autocomplete_routes.router)
 
 
 @app.get("/api/health")
