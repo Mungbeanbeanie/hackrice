@@ -4,6 +4,7 @@ vi.mock("./popup", () => ({
   renderLoading: vi.fn(),
   renderError: vi.fn(),
   renderResults: vi.fn(),
+  close: vi.fn(),
 }));
 
 import { renderError, renderLoading, renderResults } from "./popup";
@@ -29,6 +30,11 @@ function clickAddToCart(): void {
 beforeEach(() => {
   document.body.innerHTML = "<button>Add to Cart</button>";
   document.title = "Original Product";
+  // Confirmed empirically: vitest isolates sessionStorage per test FILE, but
+  // NOT between it() blocks within the same file — a same-file leak-check
+  // without this clear() fails. Needed here since every click now stashes a
+  // pending search.
+  sessionStorage.clear();
   pendingCallbacks = [];
   sendMessage = vi.fn((_message: unknown, callback: SendMessageCallback) => {
     pendingCallbacks.push(callback);
@@ -40,6 +46,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -81,5 +88,24 @@ describe("content.ts click handler", () => {
     vi.advanceTimersByTime(130_000);
 
     expect(renderError).not.toHaveBeenCalled();
+  });
+
+  it("clears the pending-search stash once a search completes in place", () => {
+    clickAddToCart();
+    expect(sessionStorage.getItem("nectarly-pending-search")).not.toBeNull();
+
+    pendingCallbacks[0]({ ok: true, data: { targetProduct: null, groups: EMPTY_GROUPS } });
+
+    expect(sessionStorage.getItem("nectarly-pending-search")).toBeNull();
+  });
+
+  it("clears the pending-search stash once a search times out in place", () => {
+    vi.useFakeTimers();
+    clickAddToCart();
+    expect(sessionStorage.getItem("nectarly-pending-search")).not.toBeNull();
+
+    vi.advanceTimersByTime(130_000);
+
+    expect(sessionStorage.getItem("nectarly-pending-search")).toBeNull();
   });
 });
