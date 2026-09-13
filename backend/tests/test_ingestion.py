@@ -80,7 +80,7 @@ def test_empty_results_are_not_cached(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_parse_product_handles_missing_fields() -> None:
     product = serpapi_client._parse_product({"position": 1}, 0)
-    assert product.id == "1"
+    assert product.id == "1-0"
     assert product.price == 0.0
     # Price is always extractable, so it is the one spec every listing carries.
     assert [s.name for s in product.specs] == ["price"]
@@ -167,7 +167,7 @@ def test_parse_product_handles_explicit_nulls() -> None:
         "product_link": None,
     }
     product = serpapi_client._parse_product(raw, 3)
-    assert product.id == "3"
+    assert product.id == "3-3"
     assert product.rating == 0.0
     assert product.review_count == 0
 
@@ -175,6 +175,15 @@ def test_parse_product_handles_explicit_nulls() -> None:
 def test_parse_products_get_unique_ids_without_identifiers() -> None:
     products = [serpapi_client._parse_product({}, i) for i in range(3)]
     assert len({p.id for p in products}) == 3
+
+
+def test_parse_products_get_unique_ids_even_with_shared_product_id() -> None:
+    # Google Shopping groups multiple sellers of the same physical product
+    # under one product_id — those are legitimately distinct offers (different
+    # price/retailer/rating) and must not collapse onto one scoring-dict entry.
+    raw = {"product_id": "SHARED", "title": "Same Product, Different Seller"}
+    products = [serpapi_client._parse_product(raw, i) for i in range(2)]
+    assert len({p.id for p in products}) == 2
 
 
 # The pasted-link regression: a scheme-less Amazon URL was read as a <=4-word

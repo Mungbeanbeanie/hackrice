@@ -202,16 +202,20 @@ def _parse_product(raw: dict, index: int) -> Product:
     # as well as omitting keys, and .get(k, default) only covers the omission.
     # A null rating would fail Product's non-optional float and 500 the request.
     #
-    # The index fallback keeps ids unique. Scores are carried in dicts keyed by
-    # product.id (quality.py, svd.py, standardize.py), so two candidates sharing
-    # an id silently share one score.
+    # Always suffixed with the per-response loop index, which is unique across
+    # one search_products call by construction. product_id alone is NOT unique —
+    # Google Shopping groups multiple sellers of the same physical product under
+    # one product_id, and those are legitimately distinct offers (different
+    # price/retailer/rating) that must stay separately scored. Scores are
+    # carried in dicts keyed by product.id (quality.py, svd.py, standardize.py),
+    # so two candidates sharing an id previously collapsed onto one shared score.
     #
     # brand stays None: `source` is the merchant ("Walmart"), not the maker, and
     # setting both from it made every card read "Walmart · Walmart". Nothing in
     # the payload carries a brand, and the leading title word is not one —
     # "The Purple Pillow" would yield "The".
     return Product(
-        id=str(raw.get("product_id") or raw.get("position") or index),
+        id=f"{raw.get('product_id') or raw.get('position') or index}-{index}",
         title=title,
         description=description,
         brand=None,
