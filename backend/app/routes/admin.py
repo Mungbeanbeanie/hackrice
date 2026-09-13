@@ -52,30 +52,13 @@ def _stat(label: str, value: Any) -> str:
     )
 
 
-# The pixel mascot from frontend/src/components/HoneyDrop.tsx, inlined. Copied
-# rather than shared: this page deliberately has no build step (see
-# architecture.md), so it cannot import from the React tree.
-_LOGO = (
-    # 33x39 is the viewBox (11x13) at an exact 3x scale, so every pixel-art cell
-    # lands on a whole pixel; a square 34x34 box scaled it by 2.615 and the rows
-    # sheared apart into visible notches. crispEdges kills the leftover AA.
-    '<svg width="33" height="39" viewBox="0 0 11 13" shape-rendering="crispEdges">'
-    '<rect x="5" y="0" width="1" height="1" fill="#E87D00"/>'
-    '<rect x="4" y="1" width="3" height="1" fill="#F5A623"/>'
-    '<rect x="3" y="2" width="5" height="1" fill="#F5A623"/>'
-    '<rect x="2" y="3" width="7" height="1" fill="#FFCC02"/>'
-    '<rect x="1" y="4" width="9" height="2" fill="#FFCC02"/>'
-    '<rect x="1" y="5" width="9" height="3" fill="#FFD740"/>'
-    '<rect x="3" y="6" width="2" height="2" fill="#1a0800"/>'
-    '<rect x="6" y="6" width="2" height="2" fill="#1a0800"/>'
-    '<rect x="1" y="8" width="9" height="1" fill="#FFCC02"/>'
-    '<rect x="2" y="9" width="7" height="1" fill="#F5A623"/>'
-    '<rect x="3" y="10" width="5" height="1" fill="#F5A623"/>'
-    '<rect x="4" y="11" width="3" height="1" fill="#E87D00"/>'
-    '<rect x="5" y="12" width="1" height="1" fill="#D06800"/>'
-    '<rect x="2" y="3" width="2" height="2" fill="#FFF176" fill-opacity="0.5"/>'
-    "</svg>"
-)
+# The pixel mascot, served by the web container at /favicon.svg and shared with
+# HoneyDrop.tsx rather than inlined again — the inline copy had already drifted
+# (its eyes were a row taller than the site's). Same origin in prod, where Caddy
+# routes /api/* here and everything else to the web image, and in dev through
+# Vite's /api proxy. 33x39 is the art's 11x13 at an exact 3x scale, so every
+# pixel-art cell lands on a whole pixel.
+_LOGO = '<img src="/favicon.svg" width="33" height="39" alt="">'
 
 # Organic design tokens, copied from frontend/src/index.css. Same reason as
 # _LOGO — no Tailwind build here, so the ramp is hand-written rather than
@@ -100,6 +83,10 @@ header { display: flex; align-items: center; gap: .7rem; margin-bottom: 2rem;
          padding-bottom: 1.2rem; border-bottom: 1px solid var(--divider); }
 h1 { font-size: 1.55rem; margin: 0; }
 header p { margin: 0; color: var(--n-700); font-size: 13px; }
+/* Same bob as the React header logo (index.css's .animate-bob). */
+header img { animation: bob 3.4s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0) }
+                 50% { transform: translateY(-7px) } }
 h2 { font-size: 1.15rem; margin: 2.6rem 0 .9rem; }
 .stats { display: flex; flex-wrap: wrap; gap: .7rem; }
 .stat { flex: 1 1 8rem; background: var(--n-100); border: 1px solid var(--divider);
@@ -130,35 +117,48 @@ td:first-child { color: var(--sage-700); font-weight: 600; }
 p.muted { background: none; border: 0; color: var(--n-500); padding: .9rem; }
 ::selection { background: var(--a-200); }
 
-/* Honey backdrop. Fixed + z-index -1 paints above the body background but
-   under every in-flow element, so the drips run behind the cards. */
-.honey { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1;
-         pointer-events: none; opacity: .72; }
+/* Honey backdrop. Absolute at the document's top, so it scrolls away with the
+   page; z-index -1 paints above the body background but under every in-flow
+   element, so the drips run behind the cards. The layer is one viewport tall,
+   so the bottom fade dissolves falling drops instead of clipping them at a
+   hard line once the page is scrolled. */
+.honey { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1;
+         pointer-events: none; opacity: .72;
+         -webkit-mask-image: linear-gradient(#000 70%, transparent);
+         mask-image: linear-gradient(#000 70%, transparent); }
 .strand { transform-box: fill-box; transform-origin: 50% 0;
           animation: strand var(--t) var(--d) infinite; }
 .bulb { transform-box: fill-box; transform-origin: 50% 50%;
         transform: translateY(var(--l));
         animation: bulb var(--t) var(--d) infinite; }
 /* One cycle: the strand stretches from the pool while the bulb swells at its
-   tip (0-55%), the neck thins and snaps back (55-70%), the bulb free-falls
-   off the bottom (55-85%), then everything sits hidden inside the pool. */
+   tip (0-50%), the neck thins and creeps a little further (50-56%), then it
+   snaps: the thread recoils fast and beads up while the bulb free-falls
+   (56-61%), the stub sinks slowly back into the pool (61-76%), and everything
+   sits hidden inside the pool until the next cycle. The recoil MUST start fast
+   and decelerate — an ease-in here reads as the thread freezing mid-air. */
 @keyframes strand {
   0%   { transform: scale(1, 0);
          animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
-  55%  { transform: scale(1, 1); animation-timing-function: ease-in; }
-  62%  { transform: scale(.25, .55); animation-timing-function: ease-out; }
-  70%, 100% { transform: scale(.25, 0); }
+  50%  { transform: scale(1, 1); animation-timing-function: ease-in; }
+  56%  { transform: scale(.7, 1.08);
+         animation-timing-function: cubic-bezier(.1, .9, .2, 1); }
+  61%  { transform: scale(.95, .3); animation-timing-function: ease-in-out; }
+  76%, 100% { transform: scale(1, 0); }
 }
 @keyframes bulb {
   0%   { transform: translateY(0) scale(.5);
          animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
-  55%  { transform: translateY(var(--l)) scale(1);
-         animation-timing-function: cubic-bezier(.45, 0, .85, .55); }
+  50%  { transform: translateY(var(--l)) scale(1); animation-timing-function: ease-in; }
+  56%  { transform: translateY(calc(var(--l) * 1.08)) scale(1);
+         animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
   /* step-end: snap back into the pool while off-screen, never mid-frame. */
-  85%  { transform: translateY(110vh) scale(1); animation-timing-function: step-end; }
+  86%  { transform: translateY(110vh) scale(1); animation-timing-function: step-end; }
   100% { transform: translateY(0) scale(.5); }
 }
-@media (prefers-reduced-motion: reduce) { .strand, .bulb { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .strand, .bulb, header img { animation: none; }
+}
 """
 
 
@@ -176,20 +176,26 @@ def _drip(x: int, y: int, w: int, r: int, length: int, cycle: int, delay: int) -
 # (x vw, y px, strand width, bulb radius, drop length, cycle s, delay s). Each x
 # sits under a lobe of the pool path below; negative delays desync the loops.
 _DRIPS = [
-    (13, 76, 18, 14, 360, 15, -6),
-    (31, 66, 12, 9, 200, 12, -2),
-    (50, 82, 22, 17, 440, 18, -11),
-    (69, 60, 11, 8, 150, 11, -5),
-    (88, 78, 15, 12, 300, 14, -9),
+    (13, 78, 18, 14, 360, 15, -6),
+    (31, 72, 12, 9, 200, 12, -2),
+    (50, 84, 22, 17, 440, 18, -11),
+    (70, 64, 11, 8, 150, 11, -5),
+    (88, 80, 15, 12, 300, 14, -9),
 ]
 
 # Pool edge in a 1000x100 box stretched to the viewport (preserveAspectRatio
-# none), so the lobes land at the same vw fractions as _DRIPS' x values.
+# none), so the lobes land at the same vw fractions as _DRIPS' x values. Lobe
+# spacing, depth and handle lengths are deliberately uneven — evenly spaced
+# equal sags read as a scallop border, not poured honey.
 _POOL = (
-    "M0 0H1000V52C940 52 920 92 880 92C850 92 830 46 785 46C740 46 725 74 690 74"
-    "C655 74 640 50 595 50C550 50 535 96 500 96C465 96 450 44 405 44"
-    "C360 44 345 80 310 80C275 80 260 48 220 48C175 48 165 90 130 90"
-    "C95 90 85 46 50 46C25 46 20 60 0 60Z"
+    "M0 0H1000V56C985 56 975 68 960 68C948 68 940 46 925 46C905 46 900 94 880 94"
+    "C850 94 838 60 812 60C792 60 785 40 770 40C738 40 728 78 700 78"
+    "C675 78 668 48 655 48C640 48 632 54 620 54C606 54 600 50 590 50"
+    "C570 50 562 66 545 66C530 66 520 98 500 98C470 98 462 42 445 42"
+    "C428 42 420 58 405 58C392 58 386 46 375 46C350 46 332 86 310 86"
+    "C288 86 278 40 262 40C250 40 240 42 230 42C216 42 210 64 200 64"
+    "C175 64 155 92 130 92C110 92 100 44 85 44C68 44 60 72 45 72"
+    "C22 72 12 52 0 52Z"
 )
 
 # ponytail: the goo filter covers the whole viewport, so every frame blurs a
@@ -204,8 +210,10 @@ _HONEY = (
     # same blur, offset and tinted terracotta, doubles as the drop shadow.
     '<filter id="goo" filterUnits="userSpaceOnUse" x="0" y="-10%" width="100%" '
     'height="120%" color-interpolation-filters="sRGB">'
-    '<feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/>'
-    '<feColorMatrix in="b" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 19 -9" '
+    # 6/18/-7 rather than the usual 7/19/-9: the alpha crush eats anything
+    # thinner than ~7px, and a necking strand has to stay visible at 70% width.
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>'
+    '<feColorMatrix in="b" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7" '
     'result="goo"/>'
     '<feOffset in="b" dy="5" result="o"/>'
     '<feFlood flood-color="#8c491a" flood-opacity=".35"/>'

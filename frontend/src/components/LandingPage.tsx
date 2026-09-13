@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowDown, Check, Download } from "lucide-react";
 
+import HoneyBackdrop from "@/components/HoneyBackdrop";
 import HoneyDrop from "@/components/HoneyDrop";
 import SearchBar from "@/components/SearchBar";
 import TermsLink from "@/components/TermsLink";
@@ -102,9 +103,12 @@ export default function LandingPage({
 }: Props) {
   return (
     <div>
+      <HoneyBackdrop />
       {/* Header */}
+      {/* bg-bg/75, not bg-bg: an opaque header hid the honey pool, and the
+          backdrop blur below had nothing to blur. */}
       <header
-        className="sticky top-0 z-20 bg-bg border-b border-divider"
+        className="sticky top-0 z-20 bg-bg/75 border-b border-divider"
         style={{ backdropFilter: "blur(14px)" }}
       >
         <div
@@ -287,7 +291,7 @@ export default function LandingPage({
                 style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTopWidth: 1, borderTopStyle: "solid", gap: "var(--space-2)" }}
               >
                 <span className="text-accent-2-700 font-semibold" style={{ fontSize: "13px" }}>
-                  You keep
+                  SAVINGS
                 </span>
                 <span className="text-accent-2-700" style={{ fontFamily: "var(--font-heading)", fontSize: "27px", lineHeight: 1 }}>
                   $117.00

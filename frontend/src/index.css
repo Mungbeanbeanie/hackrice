@@ -97,3 +97,40 @@ input::placeholder { color: var(--color-neutral-600); }
 .animate-rise-in { animation: riseIn 0.5s ease both; }
 .animate-soft-in { animation: softIn 0.3s ease both; }
 .animate-bob { animation: bob 3.4s ease-in-out infinite; }
+
+/* Honey backdrop (components/HoneyBackdrop.tsx). Absolute at the document's
+   top, so it scrolls away with the page; z-index -1 paints above the body
+   background but under every in-flow element, so the drips run behind the
+   cards. The layer is one viewport tall, so the bottom fade dissolves falling
+   drops instead of clipping them at a hard line once the page is scrolled. */
+.honey { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1;
+         pointer-events: none; opacity: .72;
+         -webkit-mask-image: linear-gradient(#000 70%, transparent);
+         mask-image: linear-gradient(#000 70%, transparent); }
+.honey .strand { transform-box: fill-box; transform-origin: 50% 0;
+                 animation: honeyStrand var(--t) var(--d) infinite; }
+.honey .bulb { transform-box: fill-box; transform-origin: 50% 50%;
+               transform: translateY(var(--l));
+               animation: honeyBulb var(--t) var(--d) infinite; }
+/* One cycle: the strand stretches from the pool while the bulb swells at its
+   tip (0-50%), the neck thins and creeps a little further (50-56%), then it
+   snaps: the thread recoils fast and beads up while the bulb free-falls
+   (56-61%), the stub sinks slowly back into the pool (61-76%), and everything
+   sits hidden inside the pool until the next cycle. The recoil MUST start fast
+   and decelerate — an ease-in here reads as the thread freezing mid-air. */
+@keyframes honeyStrand {
+  0%   { transform: scale(1, 0); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  50%  { transform: scale(1, 1); animation-timing-function: ease-in; }
+  56%  { transform: scale(.7, 1.08); animation-timing-function: cubic-bezier(.1, .9, .2, 1); }
+  61%  { transform: scale(.95, .3); animation-timing-function: ease-in-out; }
+  76%, 100% { transform: scale(1, 0); }
+}
+@keyframes honeyBulb {
+  0%   { transform: translateY(0) scale(.5); animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  50%  { transform: translateY(var(--l)) scale(1); animation-timing-function: ease-in; }
+  56%  { transform: translateY(calc(var(--l) * 1.08)) scale(1); animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
+  /* step-end: snap back into the pool while off-screen, never mid-frame. */
+  86%  { transform: translateY(110vh) scale(1); animation-timing-function: step-end; }
+  100% { transform: translateY(0) scale(.5); }
+}
+@media (prefers-reduced-motion: reduce) { .honey .strand, .honey .bulb { animation: none; } }
