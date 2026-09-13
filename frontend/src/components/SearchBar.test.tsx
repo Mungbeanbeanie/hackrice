@@ -122,6 +122,73 @@ describe("SearchBar dropdown (additive alongside the ghost suggestion)", () => {
     expect(onSearch).toHaveBeenCalledWith("nike");
   });
 
+  it("Escape hides the dropdown but typing more reopens it (regression: dismissed used to stick forever)", async () => {
+    vi.mocked(getAutocomplete).mockResolvedValue(["Nike Air Force 1"]);
+    render(<Harness onSearch={vi.fn()} />);
+
+    const input = screen.getByPlaceholderText(/Paste a link/);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "nike" } });
+    await runDebounce();
+    expect(screen.getByText("Nike Air Force 1")).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByText("Nike Air Force 1")).toBeNull();
+
+    // Still focused the whole time (Escape never blurs) — typing more must
+    // still be able to reopen the dropdown, not stay hidden forever.
+    vi.mocked(getAutocomplete).mockResolvedValue(["Nike Air Zoom Pegasus"]);
+    fireEvent.change(input, { target: { value: "nike a" } });
+    await runDebounce();
+
+    expect(screen.getByText("Nike Air Zoom Pegasus")).toBeTruthy();
+  });
+
+  it("a stale response from an earlier keystroke never overwrites a fresher one (regression: race condition)", async () => {
+    let resolveFirst!: (v: string[]) => void;
+    let resolveSecond!: (v: string[]) => void;
+    const firstPromise = new Promise<string[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondPromise = new Promise<string[]>((resolve) => {
+      resolveSecond = resolve;
+    });
+    vi.mocked(getAutocomplete)
+      .mockImplementationOnce(() => firstPromise)
+      .mockImplementationOnce(() => secondPromise);
+
+    render(<Harness onSearch={vi.fn()} />);
+    const input = screen.getByPlaceholderText(/Paste a link/);
+    fireEvent.focus(input);
+
+    fireEvent.change(input, { target: { value: "a" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    fireEvent.change(input, { target: { value: "ab" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(getAutocomplete).toHaveBeenCalledTimes(2);
+
+    // Current (second) request resolves first; stale (first) request arrives
+    // late. Without the staleness guard, the late arrival would win.
+    await act(async () => {
+      resolveSecond(["AB Result"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      resolveFirst(["A Result"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("AB Result")).toBeTruthy();
+    expect(screen.queryByText("A Result")).toBeNull();
+  });
+
   it("the existing ghost suggestion still renders unaffected, alongside the dropdown", async () => {
     // "Nike Air Z" -> "Nike Air Zoom Pegasus" is lib/autocomplete.ts's own
     // curated match — real, not mocked. Regression guard that adding the

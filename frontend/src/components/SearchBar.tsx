@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
 
 import { getAutocomplete } from "@/api/client";
@@ -30,9 +30,21 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [highlighted, setHighlighted] = useState(-1);
   const [focused, setFocused] = useState(false);
-  const dropdownVisible = focused && suggestions.length > 0;
+  // Escape doesn't blur the input (DOM focus stays put), so `focused` alone
+  // can't represent "user dismissed the dropdown" — it would never reopen on
+  // further typing. Separate flag, cleared whenever the query changes.
+  const [dismissed, setDismissed] = useState(false);
+  const dropdownVisible = focused && !dismissed && suggestions.length > 0;
+
+  // Tracks the most recent input value across renders so an in-flight
+  // request's `.then` can detect it's stale (superseded by a later keystroke
+  // that fired its own request before this one resolved) and discard itself
+  // instead of clobbering fresher suggestions.
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
 
   useEffect(() => {
+    setDismissed(false);
     if (!value.trim()) {
       setSuggestions([]);
       setHighlighted(-1);
@@ -41,10 +53,14 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
     const timer = window.setTimeout(() => {
       getAutocomplete(value)
         .then((results) => {
+          if (latestValueRef.current !== value) return;
           setSuggestions(results);
           setHighlighted(-1);
         })
-        .catch(() => setSuggestions([]));
+        .catch(() => {
+          if (latestValueRef.current !== value) return;
+          setSuggestions([]);
+        });
     }, 150);
     return () => window.clearTimeout(timer);
   }, [value]);
@@ -120,7 +136,7 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
                   handleSelect(term);
                 }
               } else if (e.key === "Escape") {
-                setFocused(false);
+                setDismissed(true);
                 setHighlighted(-1);
               }
             }}
