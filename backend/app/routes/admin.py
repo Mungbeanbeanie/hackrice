@@ -56,7 +56,10 @@ def _stat(label: str, value: Any) -> str:
 # rather than shared: this page deliberately has no build step (see
 # architecture.md), so it cannot import from the React tree.
 _LOGO = (
-    '<svg width="34" height="34" viewBox="0 0 11 13" style="image-rendering:pixelated">'
+    # 33x39 is the viewBox (11x13) at an exact 3x scale, so every pixel-art cell
+    # lands on a whole pixel; a square 34x34 box scaled it by 2.615 and the rows
+    # sheared apart into visible notches. crispEdges kills the leftover AA.
+    '<svg width="33" height="39" viewBox="0 0 11 13" shape-rendering="crispEdges">'
     '<rect x="5" y="0" width="1" height="1" fill="#E87D00"/>'
     '<rect x="4" y="1" width="3" height="1" fill="#F5A623"/>'
     '<rect x="3" y="2" width="5" height="1" fill="#F5A623"/>'
@@ -106,13 +109,17 @@ h2 { font-size: 1.15rem; margin: 2.6rem 0 .9rem; }
           font-size: 1.85rem; line-height: 1.1; color: var(--a-700); }
 .stat span { font-size: 12.5px; color: var(--n-700); }
 .card { background: var(--n-100); border: 1px solid var(--divider);
-        border-radius: 16px; overflow-x: auto;
+        border-radius: 16px; overflow: auto; max-height: 26rem;
         box-shadow: 0 1px 2px rgba(46, 43, 37, 0.14); }
 table { border-collapse: collapse; width: 100%; min-width: 30rem; }
 th, td { text-align: left; padding: .55rem .9rem;
          border-bottom: 1px solid var(--divider); }
 th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em;
-     color: var(--n-700); font-weight: 700; background: var(--surface); }
+     color: var(--n-700); font-weight: 700; background: var(--surface);
+     position: sticky; top: 0; z-index: 1;
+     /* border-collapse drops a sticky cell's own border on scroll, so the
+        header's underline is an inset shadow instead. */
+     border-bottom: 0; box-shadow: inset 0 -1px 0 var(--divider); }
 td { font-size: 14px; font-variant-numeric: tabular-nums; }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--n-200); }
