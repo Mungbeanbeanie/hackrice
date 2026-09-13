@@ -15,11 +15,11 @@ This SaaS platform shifts the paradigm from **discount acquisition** to **capita
 * **Cross-Category Alternatives:** Bridges non-overlapping feature spaces (e.g., matching a high-end down pillow to a high-density latex ergonomic pillow) by evaluating latent functional utility rather than rigid attribute name matching.
 
 ### 1.3 Search Input Modes
-The system accepts three distinct input modes, each resolving differently before entering the shared scoring pipeline (Section 3):
+The system accepts three distinct input modes, each resolving differently before entering the shared scoring pipeline (Section 3). Description Mode is the safe default for any non-URL input; Exact Product Mode is an escalation out of that default, decided *after* a search already ran — not a peer classification chosen up front from the raw string.
 
 * **URL Mode:** User pastes a link to a specific product page. The linked product is scraped/parsed and used directly as the **target reference product**.
-* **Exact Product Mode:** User enters a specific product name/brand/model as free text (e.g., "Purple Harmony Pillow"). The system searches for that product via SerpAPI and uses the top match as the **target reference product** — functionally identical to URL Mode downstream, differing only in how the target is resolved.
-* **Description Mode:** User enters a general functional description (e.g., "ergonomic memory foam pillow") rather than a specific product. There is **no target reference product** in this mode — the query itself is embedded and used as the reference vector for Layer 1 similarity (Section 3.1). The UI's Target Reference Product header (Section 5.1) is omitted, and candidates are ranked directly by $Q \cdot \text{Similarity}(\mathbf{u}_{\text{query}}, \mathbf{v}) / \text{Cost}$.
+* **Exact Product Mode:** User enters free text that *appears* to name a specific product. The backend does not classify this from the raw string alone: it runs one SerpAPI search first, and only escalates to Exact Product Mode if all three hold — (a) a brand or product-line name from a curated list (`backend/app/brand_names.json`) is detected in the query, (b) that brand is confirmed present in the top SerpAPI hit's own title (not merely detected in the query), and (c) the query is semantically close to that hit's title (`text-embedding-3-small` cosine similarity ≥ `config.EXACT_PRODUCT_MATCH_THRESHOLD`, default 0.5). If any check fails, the request falls through to Description Mode on the same result set — no second upstream call. When escalation succeeds, the confirmed hit becomes the **target reference product**, functionally identical to URL Mode downstream.
+* **Description Mode:** User enters a general functional description (e.g., "ergonomic memory foam pillow") rather than a specific product — or a query that named a brand but failed the Exact Product gate above. There is **no target reference product** in this mode — the query itself is embedded and used as the reference vector for Layer 1 similarity (Section 3.1). The UI's Target Reference Product header (Section 5.1) is omitted, and candidates are ranked directly by $Q \cdot \text{Similarity}(\mathbf{u}_{\text{query}}, \mathbf{v}) / \text{Cost}$.
 
 ---
 
@@ -137,21 +137,22 @@ $$V = \frac{Q \cdot \text{Similarity}(\mathbf{u}, \mathbf{v})}{\text{Cost}}$$
 
 | Layer | Component / Technology | Justification |
 | :--- | :--- | :--- |
-| **Frontend UI** | Next.js, React | High-performance server-side rendering and quick DOM updates for complex comparison matrices. |
+| **Frontend UI** | Vite, React | Fast dev server + build tooling for a client-rendered SPA — no server-side rendering; every screen is a client-rendered React tree gated behind `App.tsx`'s state machine (Section 5). |
 | **Backend API** | FastAPI (Python 3.11+) | Native support for async processing, asynchronous network execution, and vector math libraries. |
 | **Vector & Math Ops** | NumPy, SciPy, PyTorch / `text-embedding-3-small` | Fast matrix transformations, SVD decomposition, vector normalization, and text embedding processing. |
 | **Data Ingestion** | SerpAPI (Google Shopping Engine Endpoint) | Avoids local headless browser scraping overhead, bypasses anti-bot blocks, and yields pre-parsed JSON data. |
-| **Data Cache** | vultr | Caches search responses and calculated vector embeddings to prevent redundant downstream API calls and minimize latency. |
+| **Data Cache** | Redis/Valkey (`cache.py`), on Vultr | Caches search responses and calculated vector embeddings to prevent redundant downstream API calls and minimize latency. |
+| **Relational Data** | Vultr Managed Postgres | Accounts, search history, and the coupon feed (`db.py`'s connection pool + schema bootstrap) — separate service from the Redis/Valkey cache above. |
 
 ---
 
 ### 4.2 Pipeline Execution Flow
 
 1. **Query Processing:**
-   * User selects one of the three input modes (Section 1.3) — **URL**, **Exact Product**, or **Description** — and submits it via the web application.
+   * User submits raw text (a URL, a product name, or a description) via the web application — there is no mode selector; `/api/search` infers the mode server-side (Section 1.3).
    * FastAPI checks the cache layer for the resolved query/target key.
-   * **URL / Exact Product Mode:** the backend resolves a single target reference product (scrape for URL Mode, top SerpAPI match for Exact Product Mode) before proceeding.
-   * **Description Mode:** no target product is resolved; the raw query text carries forward as the reference input for embedding.
+   * Exactly one SerpAPI call is made regardless of mode. **URL Mode** parses the pasted link into search text first (no direct scrape yet — `plan.md` Phase 2). **Exact Product Mode** is only confirmed after that call returns, via the brand-detection + brand-confirmation + semantic-similarity gate in Section 1.3; if the gate fails, the request proceeds as **Description Mode** on the same result set — no second upstream call.
+   * **Description Mode** (including the fallback above): no target product is resolved from the results; a synthetic baseline (the median-priced candidate — `plan.md` Phase 11's `_median_product`) stands in for savings and spec-comparison math, while the raw query text is what is actually embedded as the reference vector.
 
 2. **Data Aggregation & Ingestion:**
    * On a cache miss, the backend dispatches parallel API requests to structured shopping endpoints (SerpAPI Google Shopping) to gather candidate products.
@@ -170,15 +171,18 @@ $$V = \frac{Q \cdot \text{Similarity}(\mathbf{u}, \mathbf{v})}{\text{Cost}}$$
 
 ## 5. Web Application UI/UX Design Breakdown
 
-As of the Organic design system pass (`plan.md` Phase 10), the product spans
-four surfaces — a marketing landing page, the search + results flow below, a
-spec comparison overlay, and sign-in — rather than the single results screen
-this section originally described. (A fifth, an in-app mock of the browser
-extension's panel, was deleted in Phase 16; the real extension lives in
-`extension/` and the landing page links its packaged `.zip`.) The Organic
-design reference bundle that held the full visual spec was deleted in the same
-pass — `frontend/src/index.css`'s `@theme` block is now the only definition of
-the design tokens.
+As of the Organic design system pass (`plan.md` Phase 10) and the account/coupon
+work that followed it (undocumented in `plan.md` — see the closing note at the
+end of Section 6), the product has five top-level screens — a marketing
+landing page, the search + results flow below, sign-in, profile, and settings —
+plus one modal overlay, the spec comparison view, layered over the search +
+results screen. (A sixth screen, an in-app mock of the browser extension's
+panel, was deleted in Phase 16; the real extension lives in `extension/` and
+the landing page links its packaged `.zip` — the one live connection back to
+the app is a `?q=<title>` deep-link that `App.tsx` reads once on mount and
+uses to auto-run that search.) The Organic design reference bundle that held
+the full visual spec was deleted in the same pass — `frontend/src/index.css`'s
+`@theme` block is now the only definition of the design tokens.
 
 Two things changed from the original design that are **not** purely cosmetic:
 
@@ -193,11 +197,6 @@ Two things changed from the original design that are **not** purely cosmetic:
    computes all three to drive ordering and the quality floor (Section 3.4),
    but the UI surfaces only `rating`, `reviewCount`, a plain `matchScore`
    percentage, and a human-readable `rationale` sentence per candidate.
-
-**Status:** these two changes are implemented as a client-side stub only
-(`frontend/src/api/client.ts`'s `adaptSearchResponse`) — the backend still
-returns the original `tiers`/no-`rationale`/no-`verdict` shape. See `plan.md`
-Phase 11 for the backend catch-up that replaces the stub.
 
 The search + results surface:
 
@@ -246,14 +245,27 @@ visible at once. The earlier Ranked / Side-by-side toggle and the
 all-candidates spec table behind it are gone — per-candidate spec comparison
 still lives in the Compare overlay.
 
+Alongside this column sits a sticky sidebar (not shown in the sketch above,
+which stays single-column for readability), rendered whenever the search
+returns at least one result. Top to bottom: a **Possible Savings** card (the
+top-ranked candidate's savings against the target's price — or its own price
+alone in Description Mode — plus its match score, name, brand/retailer, and
+rating); a **Cheapest option** card (the lowest price among all returned
+results, since everything shown has already cleared the Bayesian quality
+floor); and a **Coupons** card (Section 7) that stays idle until the user
+picks a candidate from the rails above, then looks up an active code for that
+candidate's retailer.
+
 ### 5.1 Component Breakdown
-* **Search Bar:** One input for all three modes (Section 1.3) — no mode selector. The backend infers url / exact_product / description from the raw string; any non-empty string is valid input.
+* **Search Bar:** One input for all three modes (Section 1.3) — no mode selector. The backend infers url / exact_product / description from the raw string; any non-empty string is valid input. Also runs a frontend-only ghost-suggestion autocomplete (`frontend/src/lib/autocomplete.ts` against a curated `frontend/src/data/brandSuggestions.ts` list) — Tab accepts the suggestion; purely client-side prefix matching, no backend involvement.
 * **Reference Product Card:** Displays the resolved target product to serve as the reference anchor for price, specs, and rating benchmarks. **Rendered only in URL and Exact Product modes** — omitted entirely in Description Mode, since no single target product is resolved.
 * **Same spec, no logo** (was Tier 1): Products with matching materials and structural specifications produced without brand markups.
 * **Different build, same job** (was Tier 2): Products from different material domains that achieve equivalent functional utility mapped through the latent SVD matrix layer.
 * **Cheapest that clears quality** (was Tier 3): The lowest absolute price point that successfully passes the Bayesian Quality ($Q$) safety threshold, catering to maximum cost reduction.
-* **Comparison overlay:** Per-candidate spec breakdown against the reference product, with a six-value verdict chip per spec (`same`/`better`/`equivalent`/`close`/`different`/`lower`) and a one-to-two sentence `rationale`.
-* **Landing and sign-in surfaces:** Marketing/account surfaces outside the search+results flow — see `plan.md` Phase 10. The landing page's extension section hands over the real packaged extension as a download (`plan.md` Phase 16); the in-app mock panel that used to stand in for it is gone.
+* **Comparison overlay:** Per-candidate spec breakdown against the reference product, with a five-value verdict chip per spec (`same`/`better`/`close`/`different`/`lower`) and a one-to-two sentence `rationale`.
+* **Landing, sign-in, profile, and settings surfaces:** Marketing/account surfaces outside the search+results flow — see `plan.md` Phase 10. The landing page's extension section hands over the real packaged extension as a download (`plan.md` Phase 16); the in-app mock panel that used to stand in for it is gone. Profile lists a signed-in user's past searches (re-runnable via `GET /api/auth/history`, clearable via `DELETE`); Settings edits display name, avatar (client-side cropped/resized before upload), and the `share_data` privacy toggle (Section 6.3). Both fall back to the sign-in screen when signed out, and neither is in `plan.md`'s phase checklist (see the closing note at the end of Section 6).
+* **Account menu:** Header pill — a sign-in button when signed out, or a menu (Profile / Settings / Log out) when signed in.
+* **Coupon panel:** Sidebar card (see the sidebar description above and Section 7) — looks up a candidate's retailer via `GET /api/coupons?store=` once the user selects it from the rails, shows the best active code/discount description/expiry when one exists, and estimates a savings figure with a text heuristic since the underlying feed carries no numeric discount field.
 
 ---
 
@@ -262,16 +274,33 @@ still lives in the Compare overlay.
 ### 6.1 Account Creation
 * Email-based accounts — user signs up/logs in with an email address (mechanism: magic-link or verification-code email, no password storage for MVP — avoids password hashing/reset flows; revisit if a password flow is explicitly wanted).
 * Backed by the Vultr Managed Postgres cluster referenced in `deploy/README.md` §1. `db.py` bootstraps the schema on startup and `accounts/store.py` reads/writes it, so `DATABASE_URL` is live rather than the dead config it originally was.
-* Core account fields: `id`, `email` (unique), `created_at`.
+* Core account fields: `id`, `email` (unique), `created_at`, `display_name` (nullable), `avatar` (nullable `data:image/...` URL, ~100KB cap, client-side cropped/resized to a 128px JPEG before upload — see Section 5.1's Settings surface), `share_data` (boolean, default `true` — see Section 6.3 for what it gates).
 * Sign-up is gated on a required terms checkbox disclosing that we store the user's email and their searches (`plan.md` Phase 12). The gate is **UI-only** — the browser's native `required` validation blocks the form, but acceptance is never sent to or stored by the backend, so there is no per-account consent record to audit. Add `accepted_terms_at` if that ever needs proving.
+* `routes/auth.py` grew from the 3 routes Phase 8 shipped to 7: `request-code`/`verify`/`me` (GET) originally, plus `logout`, `me` (PATCH, profile update), and `history` (GET and DELETE — Section 6.2).
 
-### 6.2 Shopping History (exploratory — not yet committed)
-* Tentative: persist each search (`SearchQuery` + resolved target + returned tiers) against the logged-in user's account, so a user can revisit past comparisons.
-* Partially superseded by §6.3: the raw searches of signed-in users **are** now persisted and account-linked. What remains undecided is the user-facing half — whether history surfaces as raw past searches or saved/starred alternatives, its retention period, and whether it drives personalization (e.g. weighting $V$ by past category preferences). §6.3 stores neither the resolved target nor the returned tiers, so a "revisit this comparison" feature still needs a schema change.
-* Not scoped into `plan.md` yet — pending a decision on the above before it becomes checklist items.
+### 6.2 Search History (implemented)
+* Every signed-in search is persisted against the account (`searches` table, `account_id` non-null) and surfaced back to that user via `GET /api/auth/history` — rendered by `ProfilePage.tsx` as a list of past queries, each re-runnable (`rerun` re-executes the query through the normal search flow, not a cached replay) and clearable (`DELETE /api/auth/history`, backed by `accounts/store.py`'s `delete_search_history`).
+* Stores only `query`, `mode`, `result_count`, `created_at` (`SearchHistoryItem` in `models.py`) — **not** the resolved target or returned groups from that search. A "revisit this exact comparison" feature (as opposed to re-running the same query fresh) would still need a schema change.
+* Does not drive personalization or re-weight $V$ by past category preferences — it is a plain log surfaced back to its owner, nothing more.
+* Not in `plan.md`'s phase checklist — see the closing note at the end of this section.
 
 ### 6.3 Search Log & Admin Dashboard (implemented — `plan.md` Phase 13)
 * Every `/api/search` call is logged to a `searches` table (`query`, `mode`, `result_count`, `created_at`, nullable `account_id`). Search requires no sign-in, so most rows are anonymous — that is deliberate, not a gap.
 * Recorded by `analytics.py`, which **never raises**: a broken or unreachable database degrades tracking, never a user's search.
+* Each account's `share_data` preference (default `true`, edited via the Settings surface — Section 5.1) stamps `searches.private = NOT share_data` at **insert time**, evaluated from the account's setting as it stands at that moment — not retroactive. Toggling `share_data` off only makes searches recorded from that point forward private; earlier searches keep whichever value they were already stamped with. Anonymous searches (`account_id` null) are always non-private. `admin_stats()`'s every query (totals, 24h counts, top queries, recent-searches list) filters `WHERE NOT private`, so opting out removes an account's future searches from the internal dashboard entirely — the account's own history view (Section 6.2) is unaffected either way, and `ProfilePage.tsx` shows a notice when the user's own `share_data` is currently off.
 * `GET /api/admin` renders signups and search activity as server-rendered HTML behind HTTP Basic (`ADMIN_PASSWORD`), and 503s while that is unset. Deliberately not part of the React app — no new frontend surface, no routing change.
 * This is the **log** half of §6.2. It is internal-facing only: nothing about it is exposed to the user whose searches it records.
+
+**Note on `plan.md` coverage:** the account fields/routes above (display name, avatar, `share_data`, logout, profile update), all of Section 6.2, and the Section 5.1 surfaces they feed (`AccountMenu.tsx`, `ProfilePage.tsx`, `SettingsPage.tsx`, `CouponPanel.tsx`) exist in the shipped app but have no corresponding entry in `plan.md`'s phase checklist — they were built and merged outside the phase-based workflow. Flagged here rather than backfilled into `plan.md`, per instruction to only touch what's explicitly asked.
+
+---
+
+## 7. Coupon Lookup & Best-Offer Selection
+
+Best-active-coupon lookup by retailer, layered on top of the core comparison pipeline rather than integrated into its scoring (Section 3) — a coupon changes what a listing effectively costs at checkout, not its functional-similarity score.
+
+* **Data source:** CouponAPI.org's periodic full CSV feed, loaded via `backend/app/coupons/loader.py`'s `load_feed(csv_path)` into a local `coupon_offers` Postgres table — upserted, keyed by `offer_id`, so re-running against a newer feed is idempotent. Automated feed retrieval is unconfirmed; the loader is invoked manually (`python -m app.coupons.loader <path>`).
+* **Selection:** `coupons/selector.py`'s `best_offer(store)` normalizes the retailer name to the feed's bare-domain form, filters out expired offers, and ranks by `rating` desc then `start_date` desc (`NULLS LAST`) as a recency tiebreak — returns the single best `CouponOffer` (`code`, `discount_description`, `store`, `expires_at`, `start_date`, `rating`) or `None`.
+* **API:** `GET /api/coupons?store={name}` (`routes/coupons.py`) — checks `cache.py`'s `get_cached_coupon` first, calls `best_offer` on a miss, caches a hit for 3600s (`set_cached_coupon`; a miss is never cached, since the underlying query is cheap and a coupon can appear between calls).
+* **UI:** `CouponPanel.tsx`, a sidebar card alongside the results (Section 5.1) — driven by whichever candidate the user selects from the rails, not automatically the target reference product; idle until one is chosen. The feed carries no numeric discount field, so the panel estimates a savings figure from the offer's text (a regex heuristic against strings like "15% off" or "$10 off") rather than computing one — an approximation, shown only when the pattern matches.
+* Same `plan.md` coverage gap as the closing note at the end of Section 6: the backend (loader/selector/route) is Phase 9; the panel that surfaces it in the UI shipped later with no phase entry.

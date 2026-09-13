@@ -12,34 +12,61 @@ backend/
     models.py
     cache.py
     analytics.py
+    db.py
+    brand_names.json
+    accounts/
+      store.py
+      session.py
+      verification.py
+      mailer.py
+    coupons/
+      models.py
+      loader.py
+      selector.py
     ingestion/
       target_resolver.py
       serpapi_client.py
     features/
       embeddings.py
+      lexical.py
       attribute_matrix.py
       svd.py
       standardize.py
     scoring/
       quality.py
       value.py
+      explain.py
     routes/
       search.py
-      compare.py
+      auth.py
+      coupons.py
       admin.py
   tests/
     test_smoke.py
     test_scoring.py
     test_pipeline.py
     test_admin.py
+    test_ingestion.py
+    test_accounts.py
+    test_auth_routes.py
+    test_coupons.py
+    test_explain.py
+    test_cache.py
+    test_target_resolver.py
 
 frontend/
   src/
     main.tsx
     App.tsx
+    App.test.tsx
     index.css
     api/
       client.ts
+    lib/
+      autocomplete.ts
+      autocomplete.test.ts
+    data/
+      brandSuggestions.ts
     components/
       SearchBar.tsx
       HoneyDrop.tsx
@@ -49,9 +76,31 @@ frontend/
       SpecBreakdownModal.tsx
       LandingPage.tsx
       SignInPage.tsx
+      AccountMenu.tsx
+      AccountMenu.test.tsx
+      ProfilePage.tsx
+      ProfilePage.test.tsx
+      SettingsPage.tsx
+      SettingsPage.test.tsx
+      CouponPanel.tsx
+      CouponPanel.test.tsx
       TermsLink.tsx
       TermsLink.test.tsx
-    App.test.tsx
+
+extension/
+  build.mjs
+  manifest.json
+  manifest.template.json
+  package.json
+  tsconfig.json
+  vitest.config.ts
+  src/
+    background.ts
+    content.ts
+    detect.ts
+    detect.test.ts
+    global.d.ts
+    popup.ts
 
 deploy/
   docker-compose.yml
@@ -67,19 +116,23 @@ build`.
 
 | Group | Files | Owns |
 | :--- | :--- | :--- |
-| Config & Models | `config.py`, `models.py` | Env settings, `SearchMode` enum, shared Pydantic schemas. No internal deps — foundation for every other backend file. |
+| Config & Models | `config.py`, `models.py` | Env settings, `SearchMode`/`Group` enums, shared Pydantic schemas (`Product`, `Account`, `SearchHistoryItem`, `ComparisonResult`, etc). No internal deps — foundation for every other backend file. |
 | Ingestion | `ingestion/target_resolver.py`, `ingestion/serpapi_client.py`, `cache.py` | Resolving/fetching raw product data per search mode; caching responses and embeddings. |
-| Feature Engineering | `features/embeddings.py`, `features/attribute_matrix.py`, `features/svd.py`, `features/standardize.py` | Turning raw ingested data into the latent-space similarity score (Layers 1–2 of `overview.md` §3). |
-| Scoring | `scoring/quality.py`, `scoring/value.py` | Bayesian quality ($Q$) and value optimization ($V$) computation, tier assignment (Layers 3–4). |
-| API | `routes/search.py`, `routes/compare.py`, `main.py` | HTTP surface; orchestrates ingestion → features → scoring per request; wires routers into the app. |
+| Feature Engineering | `features/embeddings.py`, `features/lexical.py`, `features/attribute_matrix.py`, `features/svd.py`, `features/standardize.py` | Turning raw ingested data into the latent-space similarity score (Layers 1–2 of `overview.md` §3). `lexical.py` is a pure-stdlib TF-IDF fallback (`tfidf_vectors`), split out of `attribute_matrix.py` — used only when the embeddings API is unavailable. |
+| Scoring | `scoring/quality.py`, `scoring/value.py`, `scoring/explain.py` | Bayesian quality ($Q$) and value optimization ($V$) computation, group assignment (Layers 3–4). `explain.py` is a separate concern living in the same directory — per-spec verdict chips and the human-readable `rationale` string, consumed only by `routes/search.py`'s wire-shaping, not by `quality.py`/`value.py` themselves. See `plan.md` Phase 11. |
+| Accounts | `accounts/store.py`, `accounts/session.py`, `accounts/verification.py`, `accounts/mailer.py`, `db.py`, `routes/auth.py` | Email verification-code sign-in (no passwords), session cookies, and account CRUD — profile fields (`display_name`/`avatar`/`share_data`) and search-history read/clear — behind `routes/auth.py`'s 7 routes. `db.py` bootstraps the schema at startup and is the only file holding the `psycopg_pool.ConnectionPool`; every other DB-touching file reaches it via `db.get_pool()`. See `plan.md` Phase 8, `overview.md` §6. |
+| Coupons | `coupons/models.py`, `coupons/loader.py`, `coupons/selector.py`, `routes/coupons.py` | Best-active-coupon lookup by retailer: a CouponAPI.org CSV feed loaded into Postgres offline (`loader.py`, manual invocation, not per-request), queried per-request (`selector.py`'s `best_offer`), cached in `cache.py`. See `plan.md` Phase 9, `overview.md` §7. |
+| API | `routes/search.py`, `routes/auth.py`, `routes/coupons.py`, `routes/admin.py`, `main.py` | HTTP surface; orchestrates ingestion → features → scoring per request; wires all four routers into the app. (`routes/compare.py` from the original Phase 5 draft was never kept — no such file exists; nothing calls a compare endpoint, `SpecBreakdownModal.tsx` computes spec comparison client-side.) |
 | Analytics & Admin | `analytics.py`, `routes/admin.py` | Logging every search (signed-in or anonymous) to the `searches` table, and the HTTP-Basic `/api/admin` dashboard that reads it back. `analytics.py` holds the only SQL for this feature; `routes/admin.py` holds the only HTML. See `plan.md` Phase 13. |
-| Frontend data | `api/client.ts` | Typed fetch layer against the API surface above. Sends the raw query only — the backend infers the search mode. Also client-side stubs `group`/`verdict`/`rationale`/`short` over the current (pre-Phase-11) backend response — see `plan.md` Phase 10/11. |
-| Frontend input | `components/SearchBar.tsx` | Single query/URL entry field + submit; `hero`/`compact` variants. |
-| Frontend output | `components/TargetProductCard.tsx`, `components/ResultCard.tsx`, `components/AlternativeGroups.tsx`, `components/SpecBreakdownModal.tsx` | Rendering the resolved target (when present) and grouped results. `ResultCard.tsx` renders one candidate as a fixed-width portrait card; `AlternativeGroups.tsx` orders the three groups and lays out each group's `ResultCard`s in a horizontally-scrolling snap rail. See `plan.md` Phase 17. |
-| Frontend screens | `components/LandingPage.tsx`, `components/SignInPage.tsx` | Marketing/account surfaces composed directly by `App.tsx`'s screen state machine (`landing`/`signin`), not nested inside the results flow. |
+| Frontend data | `api/client.ts` | Typed fetch layer against the full API surface (search, coupons, auth/account/history) — sends the raw query only for search, the backend infers the mode. No client-side stubbing of any kind; wire types match the backend response directly (the pre-Phase-11 `adaptSearchResponse` stub is gone). |
+| Frontend input | `components/SearchBar.tsx`, `lib/autocomplete.ts`, `data/brandSuggestions.ts` | Single query/URL entry field + submit (`hero`/`compact` variants), plus a frontend-only ghost-suggestion autocomplete: `autocomplete.ts`'s `getSuggestion` prefix-matches the raw input against the curated product-name list in `brandSuggestions.ts`. Purely client-side — no backend call, and unrelated to `backend/app/brand_names.json` (a different curated list backing the search-mode-inference gate, not autocomplete). |
+| Frontend output | `components/TargetProductCard.tsx`, `components/ResultCard.tsx`, `components/AlternativeGroups.tsx`, `components/SpecBreakdownModal.tsx`, `components/CouponPanel.tsx` | Rendering the resolved target (when present) and grouped results. `ResultCard.tsx` renders one candidate as a fixed-width portrait card; `AlternativeGroups.tsx` orders the three groups and lays out each group's `ResultCard`s in a horizontally-scrolling snap rail (`plan.md` Phase 17). `CouponPanel.tsx` is a sidebar card, not part of the rail column — see `overview.md` §7. The "Possible Savings"/"Cheapest option" sidebar cards are inline JSX in `App.tsx` itself, not separate component files. |
+| Frontend screens | `components/LandingPage.tsx`, `components/SignInPage.tsx`, `components/ProfilePage.tsx`, `components/SettingsPage.tsx` | Marketing/account surfaces composed directly by `App.tsx`'s screen state machine (`landing`/`signin`/`profile`/`settings`), not nested inside the results flow. `ProfilePage`/`SettingsPage` both gate on a signed-in `account` and fall back to `SignInPage` otherwise. |
+| Frontend account UI | `components/AccountMenu.tsx` | Header pill, always visible in the `app` screen — a sign-in button when signed out, a dialog menu (Profile/Settings/Log out) when signed in. Not itself a `Screen` value; it navigates to the screens above. |
 | Frontend legal | `components/TermsLink.tsx` | Terms copy + the native `<dialog>` that shows it, and the inline "Terms" button that opens it. Shared leaf, no props, no internal deps — consumed by `SignInPage.tsx` (inside the required consent checkbox's label) and `LandingPage.tsx` (footer). See `plan.md` Phase 12. |
 | Frontend styling | `index.css`, `components/HoneyDrop.tsx` | Tailwind v4 entrypoint, Organic design-system tokens (color ramps, radius, shadow, fonts), shared keyframes, and the logo mark. No internal deps. |
-| App composition | `App.tsx`, `main.tsx` | Wires every screen/output component around `api/client.ts`; owns the `screen` × `appState` state machine. (The third `view` axis — `ranked`/`table` — was removed in Phase 17 along with `ComparisonTable.tsx`; there is one results view now.) |
+| App composition | `App.tsx`, `main.tsx` | Wires every screen/output component around `api/client.ts`; owns the `screen` (`landing`/`app`/`signin`/`profile`/`settings`) × `appState` state machine, the browser-history integration (Phase 16), and the results sidebar (Possible Savings / Cheapest option / `CouponPanel`) inline. |
+| Browser extension | `extension/build.mjs`, `extension/manifest.template.json`, `extension/src/detect.ts`, `extension/src/content.ts`, `extension/src/background.ts`, `extension/src/popup.ts`, `extension/src/global.d.ts` | A real Manifest V3 extension — its own `package.json`/`tsconfig.json`/`vitest.config.ts`, entirely separate build from the main frontend (esbuild via `build.mjs`, not Vite). Detects a checkout click on any site, calls the same `/api/search` the web app uses, renders a hand-written popup. Packaged output is committed at `frontend/public/nectarly-extension.zip` for the landing page's download link — not wired into the main app's build or import graph at all; the only runtime connection is the `?q=<title>` deep-link the popup opens back into the SPA. See `plan.md` Phase 14/15/16. |
 | Deploy | `docker-compose.yml`, `README.md` | Runs built backend/frontend images; no dependency on internal file structure. |
 
 ## Dependency Graph
@@ -92,28 +145,45 @@ target_resolver.py ──▶ serpapi_client.py ──▶ cache.py
            │
            ▼
 embeddings.py ──▶ attribute_matrix.py ─┬─▶ svd.py
-                                        └─▶ standardize.py
+                   (lexical.py: TF-IDF  └─▶ standardize.py
+                    fallback, same input)
            │
            ▼
-quality.py ──▶ value.py
+quality.py ──▶ value.py ──▶ explain.py (verdict/rationale, wire-shaping only)
            │
            ▼
-routes/search.py ──▶ routes/compare.py
+routes/search.py
            │
            ▼
-main.py  (wires routers into the FastAPI app)
-           │
-           ▼
+main.py  (wires search/auth/coupons/admin routers into the FastAPI app)
+```
+
+```
+db.py ◀── accounts/store.py ◀── routes/auth.py (also uses accounts/session.py,
+     │                                            accounts/verification.py,
+     │                                            accounts/mailer.py)
+     ◀── coupons/loader.py (offline, manual invocation, not per-request)
+     ◀── coupons/selector.py ◀── routes/coupons.py ──▶ cache.py
+     ◀── analytics.py (called by routes/search.py, swallows every exception)
+```
+
+```
 frontend/src/api/client.ts
            │
            ▼
 ResultCard.tsx ──▶ AlternativeGroups.tsx ─┐
                                             │
-SearchBar.tsx, TargetProductCard.tsx,      ▼
-SpecBreakdownModal.tsx ──────────────────────▶ App.tsx ◀── LandingPage.tsx, SignInPage.tsx
-                                            ▲
-                       index.css, HoneyDrop.tsx (leaf, no deps)
+SearchBar.tsx (+ lib/autocomplete.ts,      ▼
+data/brandSuggestions.ts), TargetProductCard.tsx,
+SpecBreakdownModal.tsx, CouponPanel.tsx ─────▶ App.tsx ◀── LandingPage.tsx, SignInPage.tsx,
+                                            ▲              ProfilePage.tsx, SettingsPage.tsx,
+                       index.css, HoneyDrop.tsx             AccountMenu.tsx
+                       (leaf, no deps)
 ```
+
+`extension/` is standalone — no arrows in/out of the diagrams above. Its only
+runtime link to the rest of the app is the `?q=<title>` URL parameter that
+`App.tsx` reads once on mount, not an import-time dependency.
 
 Notes:
 * `target_resolver.py` calls into `serpapi_client.py` for `exact_product` mode lookups; it is a no-op passthrough for `description` mode (see `plan.md` Phase 2).
@@ -128,3 +198,10 @@ Notes:
 * `ExtensionPanel.tsx` was deleted in Phase 16 along with `App.tsx`'s `extension` screen — the landing page now serves the real packaged extension (`frontend/public/nectarly-extension.zip`) instead of demoing a mock panel. `extension/src/popup.ts` is the surviving implementation of that UI.
 * `AlternativeTierList.tsx` (Phase 6) was deleted in Phase 10 — replaced by `ResultCard.tsx` (one candidate) + `AlternativeGroups.tsx` (group ordering/layout), matching the Organic design handoff's `same_spec`/`same_job`/`clears_floor` groups. See `plan.md` Phase 10/11 for the backend data-contract catch-up this still depends on.
 * `ComparisonTable.tsx` (Phase 10) was deleted in Phase 17 — the Ranked/Side-by-side toggle it was half of is gone, and each group now renders as its own horizontal snap rail instead. Per-candidate spec comparison still exists: it lives in `SpecBreakdownModal.tsx`, reached from a card's Compare button. The all-candidates spec *table* is what went away.
+* `accounts/store.py` and `coupons/loader.py`/`coupons/selector.py` are the only files besides `analytics.py` that reach Postgres directly; all reach it via `db.get_pool()`, never a separate connection.
+* `routes/auth.py`'s `current_account` dependency (`AccountDep`) gates 4 of its 7 routes (`me` GET/PATCH, `history` GET/DELETE); `request-code`, `verify`, and `logout` are unauthenticated by design (the file's own comment: "clearing a cookie nobody has is a no-op").
+* `features/lexical.py` was split out of `attribute_matrix.py` (a mechanical refactor, not new logic) — the TF-IDF fallback path when the embeddings API is unavailable.
+* `scoring/explain.py` (Phase 11) sits in the `scoring/` directory but isn't part of the Q/V computation — its `verdict`/`rationale` functions are called only by `routes/search.py`'s wire-shaping, one caller each.
+* `CouponPanel.tsx` is driven by a `couponProduct` state in `App.tsx`, set when the user selects a candidate from `AlternativeGroups.tsx` (its `onSelect` prop) — not automatically the target/reference product, and idle until a selection is made.
+* `AccountMenu.tsx`, `ProfilePage.tsx`, `SettingsPage.tsx`, `CouponPanel.tsx` (and their backing `accounts`/`coupons` calls in `api/client.ts`) have no corresponding `plan.md` phase entry — built and merged outside the phase-based workflow. See `overview.md` §6's closing note.
+* `extension/` is a fully separate TypeScript project — own `package.json`/`tsconfig.json`/`vitest.config.ts`, esbuild instead of Vite — with no import-time relationship to `backend/` or `frontend/src/`.
