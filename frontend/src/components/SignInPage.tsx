@@ -58,7 +58,10 @@ export default function SignInPage({ onGoLanding, onSignedIn, onContinueAsGuest 
   }
 
   return (
-    <div className="grid" style={{ minHeight: "100vh", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+    <div
+      className="grid"
+      style={{ minHeight: "100vh", gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))" }}
+    >
       <div className="flex items-center justify-center" style={{ padding: "clamp(32px, 6vw, 72px)" }}>
         <div className="w-full animate-rise-in" style={{ maxWidth: "380px" }}>
           <button
@@ -199,7 +202,12 @@ export default function SignInPage({ onGoLanding, onSignedIn, onContinueAsGuest 
         </div>
       </div>
 
-      <div className="bg-surface relative overflow-hidden flex items-center justify-center" style={{ padding: "clamp(32px, 6vw, 72px)" }}>
+      {/* Decoration only, and on a phone it is a screen of empty panel below
+          the form — so it starts at the width where it sits beside it. */}
+      <div
+        className="bg-surface relative overflow-hidden hidden md:flex items-center justify-center"
+        style={{ padding: "clamp(32px, 6vw, 72px)" }}
+      >
         <div
           className="absolute rounded-full bg-accent-200"
           style={{ width: 430, height: 430, top: -90, right: -120 }}

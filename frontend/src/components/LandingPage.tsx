@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDown, ArrowRight, Check } from "lucide-react";
+import { ArrowDown, Check, Download } from "lucide-react";
 
 import HoneyDrop from "@/components/HoneyDrop";
 import SearchBar from "@/components/SearchBar";
@@ -12,7 +12,6 @@ interface Props {
   onQueryChange: (value: string) => void;
   onSearch: (query: string) => void;
   onGoSignin: () => void;
-  onGoExtension: () => void;
   account: Account | null;
   onGoProfile: () => void;
   onGoSettings: () => void;
@@ -85,12 +84,17 @@ function ExampleThumb({
 // first. Replace with POST /api/feedback once there is somewhere to put it.
 const FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSf0WtkQRAguepMWqBOKYo-e3HQR2Ed6yip4oglBy49RQEGAkg/viewform?usp=publish-editor";
 
+// Built from extension/ and committed to public/ — there is no Web Store
+// listing and CI's zip is a private Actions artifact, so a static file is the
+// only download anyone can actually click. Rebuild it when extension/ changes:
+// see deploy/README.md #7.
+const EXTENSION_ZIP_URL = "/nectarly-extension.zip";
+
 export default function LandingPage({
   query,
   onQueryChange,
   onSearch,
   onGoSignin,
-  onGoExtension,
   account,
   onGoProfile,
   onGoSettings,
@@ -104,7 +108,7 @@ export default function LandingPage({
         style={{ backdropFilter: "blur(14px)" }}
       >
         <div
-          className="mx-auto flex items-center"
+          className="mx-auto flex items-center flex-wrap"
           style={{ maxWidth: "1160px", padding: "14px clamp(20px, 4vw, 48px)", gap: "var(--space-4)" }}
         >
           <div className="flex items-center mr-auto" style={{ gap: "var(--space-2)" }}>
@@ -118,14 +122,14 @@ export default function LandingPage({
           <nav className="flex items-center" style={{ gap: "var(--space-1)" }}>
             <a
               href="#how"
-              className="inline-flex items-center rounded-full font-semibold no-underline text-text hover:bg-neutral-200 transition-colors"
+              className="hidden sm:inline-flex items-center rounded-full font-semibold no-underline text-text hover:bg-neutral-200 transition-colors"
               style={{ padding: "var(--space-2) var(--space-3)", fontSize: "14px" }}
             >
               How it works
             </a>
             <a
               href="#extension"
-              className="inline-flex items-center rounded-full font-semibold no-underline text-text hover:bg-neutral-200 transition-colors"
+              className="hidden sm:inline-flex items-center rounded-full font-semibold no-underline text-text hover:bg-neutral-200 transition-colors"
               style={{ padding: "var(--space-2) var(--space-3)", fontSize: "14px" }}
             >
               Extension
@@ -147,7 +151,9 @@ export default function LandingPage({
         style={{
           maxWidth: "1160px",
           padding: "clamp(40px, 7vw, 88px) clamp(20px, 4vw, 48px) clamp(32px, 5vw, 64px)",
-          gridTemplateColumns: "repeat(auto-fit, minmax(440px, 1fr))",
+          // min() or the single collapsed track still demands 440px on a
+          // narrower phone and scrolls the whole page sideways.
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(440px, 100%), 1fr))",
           gap: "clamp(36px, 5vw, 64px)",
         }}
       >
@@ -204,7 +210,7 @@ export default function LandingPage({
 
         <div
           className="relative flex items-start justify-center animate-rise-in"
-          style={{ paddingTop: "48.5px" }}
+          style={{ paddingTop: "clamp(0px, 4vw, 48.5px)" }}
         >
           <div
             className="absolute rounded-full bg-accent-200"
@@ -364,14 +370,19 @@ export default function LandingPage({
               </div>
             ))}
           </div>
-          <button
-            onClick={onGoExtension}
-            className="inline-flex items-center rounded-full bg-accent text-bg font-heading hover:bg-accent-600 transition-colors cursor-pointer"
+          <a
+            href={EXTENSION_ZIP_URL}
+            download
+            className="inline-flex items-center rounded-full bg-accent text-bg font-heading no-underline hover:bg-accent-600 transition-colors cursor-pointer"
             style={{ gap: "var(--space-2)", padding: "var(--space-3) var(--space-6)", fontSize: "15px" }}
           >
-            See the panel
-            <ArrowRight size={16} strokeWidth={2.75} />
-          </button>
+            <Download size={16} strokeWidth={2.75} />
+            Download extension
+          </a>
+          <p className="text-neutral-700" style={{ fontSize: "12.5px", maxWidth: "34em", marginTop: "var(--space-3)" }}>
+            Unzip it, then load it at <code>chrome://extensions</code> → Developer mode → Load unpacked. This build
+            talks to a backend on <code>localhost:8000</code> — there is no public API host yet.
+          </p>
         </div>
         <div className="flex justify-center">
           <div
@@ -428,13 +439,14 @@ export default function LandingPage({
               <p className="text-neutral-700" style={{ fontSize: "12px", margin: "var(--space-1) 0 0" }}>
                 You'd pay 26% of the original
               </p>
-              <button
-                onClick={onGoExtension}
-                className="w-full rounded-full bg-accent text-bg font-heading hover:bg-accent-600 transition-colors cursor-pointer"
+              {/* Part of the static screenshot mock, not a control — the real
+                  call to action is the download button beside it. */}
+              <div
+                className="w-full text-center rounded-full bg-accent text-bg font-heading"
                 style={{ marginTop: "var(--space-3)", padding: "var(--space-2)", fontSize: "14px" }}
               >
                 Compare all 4
-              </button>
+              </div>
             </div>
           </div>
         </div>

@@ -171,12 +171,14 @@ $$V = \frac{Q \cdot \text{Similarity}(\mathbf{u}, \mathbf{v})}{\text{Cost}}$$
 ## 5. Web Application UI/UX Design Breakdown
 
 As of the Organic design system pass (`plan.md` Phase 10), the product spans
-five surfaces — a marketing landing page, the search + results flow below, a
-spec comparison overlay, sign-in, and a browser-extension panel — rather than
-the single results screen this section originally described. Full visual spec
-(exact colors, spacing, copy, interaction states) lives in
-`frontend/design_handoff_nectarly_production/README.md`; this section stays at
-the conceptual level and does not duplicate it.
+four surfaces — a marketing landing page, the search + results flow below, a
+spec comparison overlay, and sign-in — rather than the single results screen
+this section originally described. (A fifth, an in-app mock of the browser
+extension's panel, was deleted in Phase 16; the real extension lives in
+`extension/` and the landing page links its packaged `.zip`.) The Organic
+design reference bundle that held the full visual spec was deleted in the same
+pass — `frontend/src/index.css`'s `@theme` block is now the only definition of
+the design tokens.
 
 Two things changed from the original design that are **not** purely cosmetic:
 
@@ -241,7 +243,7 @@ The search + results surface:
 * **Different build, same job** (was Tier 2): Products from different material domains that achieve equivalent functional utility mapped through the latent SVD matrix layer.
 * **Cheapest that clears quality** (was Tier 3): The lowest absolute price point that successfully passes the Bayesian Quality ($Q$) safety threshold, catering to maximum cost reduction.
 * **Comparison overlay:** Per-candidate spec breakdown against the reference product, with a six-value verdict chip per spec (`same`/`better`/`equivalent`/`close`/`different`/`lower`) and a one-to-two sentence `rationale`.
-* **Landing, sign-in, and extension-panel surfaces:** Marketing/account/browser-extension surfaces outside the search+results flow — see `plan.md` Phase 10.
+* **Landing and sign-in surfaces:** Marketing/account surfaces outside the search+results flow — see `plan.md` Phase 10. The landing page's extension section hands over the real packaged extension as a download (`plan.md` Phase 16); the in-app mock panel that used to stand in for it is gone.
 
 ---
 

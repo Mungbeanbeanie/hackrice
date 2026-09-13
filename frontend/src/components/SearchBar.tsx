@@ -24,7 +24,10 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
         e.preventDefault();
         if (value.trim()) onSearch(value.trim());
       }}
-      className={hero ? "w-full" : "flex-1 min-w-[280px]"}
+      // The compact variant takes a row of its own on a phone, which keeps the
+      // app header's account pill on the first row — where AccountMenu's
+      // dropdown offset assumes it is.
+      className={hero ? "w-full" : "flex-1 min-w-[200px] max-sm:order-last max-sm:basis-full"}
       style={hero ? { maxWidth: "560px" } : undefined}
     >
       <div

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, ArrowLeft, Search } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 import { getCurrentAccount, searchProducts } from "@/api/client";
 import type { Account, Group, Product, SearchResponse } from "@/api/client";
@@ -10,14 +10,13 @@ import ComparisonTable from "@/components/ComparisonTable";
 import SpecBreakdownModal from "@/components/SpecBreakdownModal";
 import LandingPage from "@/components/LandingPage";
 import SignInPage from "@/components/SignInPage";
-import ExtensionPanel from "@/components/ExtensionPanel";
 import CouponPanel from "@/components/CouponPanel";
 import HoneyDrop from "@/components/HoneyDrop";
 import AccountMenu from "@/components/AccountMenu";
 import ProfilePage from "@/components/ProfilePage";
 import SettingsPage from "@/components/SettingsPage";
 
-type Screen = "landing" | "app" | "signin" | "extension" | "profile" | "settings";
+type Screen = "landing" | "app" | "signin" | "profile" | "settings";
 type AppState = "idle" | "loading" | "results" | "error";
 type View = "ranked" | "table";
 
@@ -155,7 +154,23 @@ export default function App() {
     getCurrentAccount().then(setAccount);
   }, []);
 
-  function goTo(next: Screen) {
+  // Every screen change is a history entry, so the browser's own Back button
+  // walks the app instead of leaving the site. No router: the state machine
+  // already exists, it just never told the browser about itself.
+  useEffect(() => {
+    history.replaceState({ screen: initialQuery ? "app" : "landing" }, "");
+    const onPop = (e: PopStateEvent) => {
+      // Same reason goTo clears these: an overlay must not outlive the screen
+      // it was opened from — including when Back is what changed the screen.
+      setCompareProduct(null);
+      setCouponProduct(null);
+      setScreen((e.state?.screen as Screen | undefined) ?? "landing");
+    };
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
+  }, [initialQuery]);
+
+  const goTo = useCallback((next: Screen) => {
     // The overlay surviving a screen change was a real bug in the design
     // prototype — clear it on every navigation.
     setCompareProduct(null);
@@ -163,8 +178,12 @@ export default function App() {
     // Going home means starting over; leaving the last query in the box made
     // the landing page look like it was mid-search.
     if (next === "landing") setQuery("");
+    // history.state is read live rather than closed over, which is what lets
+    // this be a [] callback: no stale `screen`, and repeat navigations to the
+    // screen you are already on don't stack up dead Back presses.
+    if (history.state?.screen !== next) history.pushState({ screen: next }, "");
     setScreen(next);
-  }
+  }, []);
 
   function goToSignIn() {
     setReturnScreen(screen);
@@ -183,24 +202,27 @@ export default function App() {
     runSearch(q);
   }
 
-  const runSearch = useCallback(async (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) {
-      setScreen("app");
-      setAppState("idle");
-      return;
-    }
-    setScreen("app");
-    setAppState("loading");
-    try {
-      const res = await searchProducts({ query: trimmed });
-      setResults(res);
-      setAppState("results");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Search failed");
-      setAppState("error");
-    }
-  }, []);
+  const runSearch = useCallback(
+    async (q: string) => {
+      const trimmed = q.trim();
+      if (!trimmed) {
+        goTo("app");
+        setAppState("idle");
+        return;
+      }
+      goTo("app");
+      setAppState("loading");
+      try {
+        const res = await searchProducts({ query: trimmed });
+        setResults(res);
+        setAppState("results");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Search failed");
+        setAppState("error");
+      }
+    },
+    [goTo],
+  );
 
   useEffect(() => {
     if (initialQuery) runSearch(initialQuery);
@@ -225,7 +247,6 @@ export default function App() {
           onQueryChange={setQuery}
           onSearch={runSearch}
           onGoSignin={goToSignIn}
-          onGoExtension={() => goTo("extension")}
           account={account}
           onGoProfile={() => goTo("profile")}
           onGoSettings={() => goTo("settings")}
@@ -325,7 +346,7 @@ export default function App() {
 
                 {best && (
                   <aside
-                    className="flex flex-col sticky"
+                    className="flex flex-col md:sticky"
                     style={{ flex: "1 1 285px", minWidth: 0, maxWidth: "360px", gap: "var(--space-4)", top: 88 }}
                   >
                     <div className="bg-accent-2-100 border border-accent-2-300 rounded-lg" style={{ padding: "var(--space-6)" }}>
@@ -405,7 +426,7 @@ export default function App() {
           the sign-in form rather than a blank page. */}
       {screen === "profile" &&
         (account ? (
-          <ProfilePage account={account} onBack={() => goTo("app")} onRerun={rerun} />
+          <ProfilePage account={account} onBack={() => history.back()} onRerun={rerun} />
         ) : (
           <SignInPage
             onGoLanding={() => goTo("landing")}
@@ -421,7 +442,7 @@ export default function App() {
         (account ? (
           <SettingsPage
             account={account}
-            onBack={() => goTo("app")}
+            onBack={() => history.back()}
             onSaved={setAccount}
           />
         ) : (
@@ -444,76 +465,6 @@ export default function App() {
           }}
           onContinueAsGuest={() => goTo(returnScreen)}
         />
-      )}
-
-      {screen === "extension" && (
-        <div
-          className="bg-neutral-200 flex flex-col items-center"
-          style={{ minHeight: "100vh", padding: "clamp(16px, 3vw, 40px)", gap: "var(--space-4)" }}
-        >
-          <div className="w-full flex items-center flex-wrap" style={{ maxWidth: "1180px", gap: "var(--space-3)" }}>
-            <button
-              onClick={() => goTo("landing")}
-              className="inline-flex items-center rounded-full border border-divider bg-neutral-100 hover:bg-surface transition-colors font-heading text-text cursor-pointer"
-              style={{ gap: "var(--space-2)", padding: "var(--space-2) var(--space-4)", fontSize: "13.5px" }}
-            >
-              <ArrowLeft size={14} strokeWidth={2.75} />
-              Back
-            </button>
-            <p className="text-neutral-700" style={{ fontSize: "14px", margin: 0 }}>
-              The extension panel, in place on a retailer's product page.
-            </p>
-          </div>
-
-          <div
-            className="w-full bg-neutral-100 border border-divider rounded-lg shadow-lg overflow-hidden flex flex-col"
-            style={{ maxWidth: "1180px", flex: "1 1 0%" }}
-          >
-            <div className="flex items-center bg-surface border-b border-divider" style={{ gap: "var(--space-2)", padding: "var(--space-3) var(--space-4)" }}>
-              <span className="rounded-full bg-neutral-400" style={{ width: 11, height: 11 }} />
-              <span className="rounded-full bg-neutral-400" style={{ width: 11, height: 11 }} />
-              <span className="rounded-full bg-neutral-400" style={{ width: 11, height: 11 }} />
-              <span
-                className="rounded-full bg-neutral-100 flex items-center text-neutral-600 overflow-hidden whitespace-nowrap"
-                style={{ marginLeft: "var(--space-2)", flex: "1 1 0%", maxWidth: "460px", height: 26, padding: "0 var(--space-3)", fontSize: "12px" }}
-              >
-                <Search size={12} strokeWidth={2.75} className="flex-shrink-0" style={{ marginRight: "var(--space-1)" }} />
-                {results?.query || "retailer.com/product-page"}
-              </span>
-            </div>
-
-            <div
-              className="flex flex-wrap items-start"
-              style={{ flex: "1 1 0%", gap: "clamp(20px, 3vw, 44px)", padding: "clamp(20px, 3vw, 44px)" }}
-            >
-              <div style={{ flex: "1 1 300px", minWidth: 0, opacity: 0.5 }}>
-                <div
-                  className="w-full rounded-lg border border-divider flex items-center justify-center text-neutral-600"
-                  style={{
-                    aspectRatio: "4 / 3",
-                    background: "repeating-linear-gradient(45deg, var(--color-neutral-200) 0 8px, var(--color-neutral-100) 8px 16px)",
-                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                    fontSize: "12px",
-                  }}
-                >
-                  retailer product photo
-                </div>
-                <div className="rounded-full bg-neutral-200" style={{ height: 26, width: "70%", marginTop: "var(--space-4)" }} />
-                <div className="rounded-full bg-neutral-200" style={{ height: 16, width: "45%", marginTop: "var(--space-3)" }} />
-                <div className="rounded-full bg-neutral-300" style={{ height: 44, width: "180px", marginTop: "var(--space-6)" }} />
-              </div>
-
-              <div style={{ flex: "0 1 386px", width: "100%", maxWidth: "386px" }}>
-                <ExtensionPanel
-                  targetProduct={results?.targetProduct ?? null}
-                  products={allProducts}
-                  onClose={() => goTo("landing")}
-                  onOpenComparison={() => goTo("app")}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {compareProduct && (
