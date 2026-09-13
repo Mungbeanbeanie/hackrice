@@ -2,6 +2,7 @@ import { expect, test, vi, beforeEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 import App from "@/App";
+import { searchProducts, type Product, type SearchResponse } from "@/api/client";
 
 // Every network call App makes on mount or navigation. getCurrentAccount
 // resolving null is the signed-out visitor, which is the path under test.
@@ -10,6 +11,31 @@ vi.mock("@/api/client", () => ({
   searchProducts: vi.fn(() => Promise.resolve(null)),
   signOut: vi.fn(() => Promise.resolve()),
 }));
+
+const candidate: Product = {
+  id: "c1",
+  name: "Generic Contour Pillow",
+  short: "Generic Contour",
+  brand: "Unbranded",
+  price: 48,
+  image: "",
+  retailer: "example.com",
+  url: "https://example.com/c1",
+  rating: 4.3,
+  reviewCount: 120,
+  specs: [],
+  matchScore: 91,
+  savings: 30,
+};
+
+const describedResponse: SearchResponse = {
+  query: "ergonomic pillow",
+  // Description mode: no target resolved, baseline is the candidate median.
+  targetProduct: null,
+  groups: { same_spec: [candidate], same_job: [], clears_floor: [] },
+  mode: "description",
+  baselinePrice: 78,
+};
 
 // jsdom has no HTMLDialogElement — same stub as AccountMenu.test.tsx.
 Object.defineProperty(HTMLElement.prototype, "showModal", { value: vi.fn(), writable: true });
@@ -54,4 +80,18 @@ test("navigating to the screen already showing does not stack a dead entry", () 
 
   expect(history.state?.screen).toBe("app");
   expect(history.length).toBe(before + 1);
+});
+
+// The bug this guards: the sidebar re-derived the figure client-side, so with
+// no target resolved it printed the candidate's own price under the heading
+// "Possible Savings" — a $48 pillow claiming to save you $48.
+test("the savings box shows the backend's savings figure, not the price", async () => {
+  vi.mocked(searchProducts).mockResolvedValue(describedResponse);
+  render(<App />);
+
+  screen.getByRole("button", { name: "purple harmony pillow" }).click();
+
+  // Exact match, so the card's own "saves $30.00" line does not count — only
+  // the box's bare figure does. The card's "$48.00" price is legitimate.
+  await vi.waitFor(() => expect(screen.getByText("$30.00")).toBeTruthy());
 });

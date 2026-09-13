@@ -129,7 +129,95 @@ td:first-child { color: var(--sage-700); font-weight: 600; }
          font-size: 12px; color: var(--a-700); }
 p.muted { background: none; border: 0; color: var(--n-500); padding: .9rem; }
 ::selection { background: var(--a-200); }
+
+/* Honey backdrop. Fixed + z-index -1 paints above the body background but
+   under every in-flow element, so the drips run behind the cards. */
+.honey { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1;
+         pointer-events: none; opacity: .72; }
+.strand { transform-box: fill-box; transform-origin: 50% 0;
+          animation: strand var(--t) var(--d) infinite; }
+.bulb { transform-box: fill-box; transform-origin: 50% 50%;
+        transform: translateY(var(--l));
+        animation: bulb var(--t) var(--d) infinite; }
+/* One cycle: the strand stretches from the pool while the bulb swells at its
+   tip (0-55%), the neck thins and snaps back (55-70%), the bulb free-falls
+   off the bottom (55-85%), then everything sits hidden inside the pool. */
+@keyframes strand {
+  0%   { transform: scale(1, 0);
+         animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  55%  { transform: scale(1, 1); animation-timing-function: ease-in; }
+  62%  { transform: scale(.25, .55); animation-timing-function: ease-out; }
+  70%, 100% { transform: scale(.25, 0); }
+}
+@keyframes bulb {
+  0%   { transform: translateY(0) scale(.5);
+         animation-timing-function: cubic-bezier(.55, 0, .85, .4); }
+  55%  { transform: translateY(var(--l)) scale(1);
+         animation-timing-function: cubic-bezier(.45, 0, .85, .55); }
+  /* step-end: snap back into the pool while off-screen, never mid-frame. */
+  85%  { transform: translateY(110vh) scale(1); animation-timing-function: step-end; }
+  100% { transform: translateY(0) scale(.5); }
+}
+@media (prefers-reduced-motion: reduce) { .strand, .bulb { animation: none; } }
 """
+
+
+def _drip(x: int, y: int, w: int, r: int, length: int, cycle: int, delay: int) -> str:
+    # x in vw and y in px put the group inside a pool lobe; the bulb rests there
+    # at half size, merged into the pool by the goo filter until it emerges.
+    return (
+        f'<g style="transform:translate({x}vw,{y}px);'
+        f'--l:{length}px;--t:{cycle}s;--d:{delay}s">'
+        f'<rect class="strand" x="{-w / 2}" width="{w}" height="{length}"/>'
+        f'<circle class="bulb" r="{r}"/></g>'
+    )
+
+
+# (x vw, y px, strand width, bulb radius, drop length, cycle s, delay s). Each x
+# sits under a lobe of the pool path below; negative delays desync the loops.
+_DRIPS = [
+    (13, 76, 18, 14, 360, 15, -6),
+    (31, 66, 12, 9, 200, 12, -2),
+    (50, 82, 22, 17, 440, 18, -11),
+    (69, 60, 11, 8, 150, 11, -5),
+    (88, 78, 15, 12, 300, 14, -9),
+]
+
+# Pool edge in a 1000x100 box stretched to the viewport (preserveAspectRatio
+# none), so the lobes land at the same vw fractions as _DRIPS' x values.
+_POOL = (
+    "M0 0H1000V52C940 52 920 92 880 92C850 92 830 46 785 46C740 46 725 74 690 74"
+    "C655 74 640 50 595 50C550 50 535 96 500 96C465 96 450 44 405 44"
+    "C360 44 345 80 310 80C275 80 260 48 220 48C175 48 165 90 130 90"
+    "C95 90 85 46 50 46C25 46 20 60 0 60Z"
+)
+
+# ponytail: the goo filter covers the whole viewport, so every frame blurs a
+# full-screen layer. Fine on an admin page; if it ever janks, shrink the filter
+# region to the pool band and move the falling bulb out of the filtered group.
+_HONEY = (
+    '<svg class="honey" aria-hidden="true"><defs>'
+    '<linearGradient id="hg" x2="0" y2="1">'
+    '<stop offset="0" stop-color="#f7cf5c"/><stop offset="1" stop-color="#e1932a"/>'
+    "</linearGradient>"
+    # Classic goo: blur, then crush the alpha so blobs fuse into one skin. The
+    # same blur, offset and tinted terracotta, doubles as the drop shadow.
+    '<filter id="goo" filterUnits="userSpaceOnUse" x="0" y="-10%" width="100%" '
+    'height="120%" color-interpolation-filters="sRGB">'
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/>'
+    '<feColorMatrix in="b" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 19 -9" '
+    'result="goo"/>'
+    '<feOffset in="b" dy="5" result="o"/>'
+    '<feFlood flood-color="#8c491a" flood-opacity=".35"/>'
+    '<feComposite in2="o" operator="in" result="sh"/>'
+    '<feMerge><feMergeNode in="sh"/><feMergeNode in="goo"/></feMerge>'
+    "</filter></defs>"
+    '<g filter="url(#goo)" fill="url(#hg)">'
+    '<svg width="100%" height="100" viewBox="0 0 1000 100" '
+    f'preserveAspectRatio="none"><path d="{_POOL}"/></svg>'
+    + "".join(_drip(*d) for d in _DRIPS)
+    + "</g></svg>"
+)
 
 
 @router.get("/api/admin", response_class=HTMLResponse, dependencies=[Depends(_auth)])
@@ -145,6 +233,7 @@ def admin() -> str:
 <meta charset="utf-8"><title>nectarly admin</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>{_STYLE}</style>
+{_HONEY}
 <header>{_LOGO}<div><h1>nectarly admin</h1>
 <p>signups and search activity</p></div></header>
 

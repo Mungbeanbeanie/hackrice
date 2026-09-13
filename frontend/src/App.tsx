@@ -328,10 +328,11 @@ export default function App() {
                       >
                         Possible Savings:
                       </p>
+                      {/* The backend's figure, not a client-side subtraction: it
+                          is already clamped at zero and already measured against
+                          the median when no target was resolved. */}
                       <p className="text-accent-2-700" style={{ fontFamily: "var(--font-heading)", fontSize: "clamp(36px, 4vw, 44px)", lineHeight: 1, margin: 0 }}>
-                        {results.targetProduct
-                          ? `$${(results.targetProduct.price - best.price).toFixed(2)}`
-                          : `$${best.price.toFixed(2)}`}
+                        {best.savings != null ? `$${best.savings.toFixed(2)}` : "—"}
                       </p>
                       <p className="text-accent-2-700" style={{ fontSize: "14px", margin: "var(--space-2) 0 0" }}>
                         at {Math.round(best.matchScore)}% of the product you asked for
