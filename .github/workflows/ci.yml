@@ -73,6 +73,49 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Independent of backend/frontend and NOT in deploy's `needs` — a failing or
+  # skipped extension build must never block the app deploy. Packages a
+  # downloadable build so someone can grab it without a local checkout.
+  extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      # No EXTENSION_API_BASE_URL/EXTENSION_WEBAPP_URL secrets here — this
+      # packages the localhost-default build. See deploy/README.md #7 for
+      # building against a real deployed origin.
+      - name: Build
+        run: npm run build
+
+      - name: Package
+        run: |
+          zip -r extension.zip . \
+            -x 'node_modules/*' 'src/*' '*.ts' 'build.mjs' 'manifest.template.json' \
+               'package.json' 'package-lock.json' 'tsconfig.json' 'vitest.config.ts'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nectarly-extension
+          path: extension/extension.zip
+
   # Deploy lives in this file rather than its own so it can simply `needs` the
   # check jobs. A separate workflow would need `workflow_run`, which runs the
   # default branch's copy of the workflow and makes the merge-to-deploy path
