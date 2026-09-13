@@ -46,7 +46,6 @@ frontend/
       TargetProductCard.tsx
       ResultCard.tsx
       AlternativeGroups.tsx
-      ComparisonTable.tsx
       SpecBreakdownModal.tsx
       LandingPage.tsx
       SignInPage.tsx
@@ -76,11 +75,11 @@ build`.
 | Analytics & Admin | `analytics.py`, `routes/admin.py` | Logging every search (signed-in or anonymous) to the `searches` table, and the HTTP-Basic `/api/admin` dashboard that reads it back. `analytics.py` holds the only SQL for this feature; `routes/admin.py` holds the only HTML. See `plan.md` Phase 13. |
 | Frontend data | `api/client.ts` | Typed fetch layer against the API surface above. Sends the raw query only — the backend infers the search mode. Also client-side stubs `group`/`verdict`/`rationale`/`short` over the current (pre-Phase-11) backend response — see `plan.md` Phase 10/11. |
 | Frontend input | `components/SearchBar.tsx` | Single query/URL entry field + submit; `hero`/`compact` variants. |
-| Frontend output | `components/TargetProductCard.tsx`, `components/ResultCard.tsx`, `components/AlternativeGroups.tsx`, `components/ComparisonTable.tsx`, `components/SpecBreakdownModal.tsx` | Rendering the resolved target (when present) and grouped results, ranked or side-by-side. `ResultCard.tsx` renders one candidate; `AlternativeGroups.tsx` orders the three groups and lays out `ResultCard`s within each. |
+| Frontend output | `components/TargetProductCard.tsx`, `components/ResultCard.tsx`, `components/AlternativeGroups.tsx`, `components/SpecBreakdownModal.tsx` | Rendering the resolved target (when present) and grouped results. `ResultCard.tsx` renders one candidate as a fixed-width portrait card; `AlternativeGroups.tsx` orders the three groups and lays out each group's `ResultCard`s in a horizontally-scrolling snap rail. See `plan.md` Phase 17. |
 | Frontend screens | `components/LandingPage.tsx`, `components/SignInPage.tsx` | Marketing/account surfaces composed directly by `App.tsx`'s screen state machine (`landing`/`signin`), not nested inside the results flow. |
 | Frontend legal | `components/TermsLink.tsx` | Terms copy + the native `<dialog>` that shows it, and the inline "Terms" button that opens it. Shared leaf, no props, no internal deps — consumed by `SignInPage.tsx` (inside the required consent checkbox's label) and `LandingPage.tsx` (footer). See `plan.md` Phase 12. |
 | Frontend styling | `index.css`, `components/HoneyDrop.tsx` | Tailwind v4 entrypoint, Organic design-system tokens (color ramps, radius, shadow, fonts), shared keyframes, and the logo mark. No internal deps. |
-| App composition | `App.tsx`, `main.tsx` | Wires every screen/output component around `api/client.ts`; owns the `screen` × `appState` × `view` state machine. |
+| App composition | `App.tsx`, `main.tsx` | Wires every screen/output component around `api/client.ts`; owns the `screen` × `appState` state machine. (The third `view` axis — `ranked`/`table` — was removed in Phase 17 along with `ComparisonTable.tsx`; there is one results view now.) |
 | Deploy | `docker-compose.yml`, `README.md` | Runs built backend/frontend images; no dependency on internal file structure. |
 
 ## Dependency Graph
@@ -111,7 +110,7 @@ frontend/src/api/client.ts
 ResultCard.tsx ──▶ AlternativeGroups.tsx ─┐
                                             │
 SearchBar.tsx, TargetProductCard.tsx,      ▼
-ComparisonTable.tsx, SpecBreakdownModal.tsx ──▶ App.tsx ◀── LandingPage.tsx, SignInPage.tsx
+SpecBreakdownModal.tsx ──────────────────────▶ App.tsx ◀── LandingPage.tsx, SignInPage.tsx
                                             ▲
                        index.css, HoneyDrop.tsx (leaf, no deps)
 ```
@@ -128,3 +127,4 @@ Notes:
 * `App.tsx` owns the browser history integration (`pushState` in `goTo`, a `popstate` listener on mount) — no router package, and no other file touches `history`. `ProfilePage`/`SettingsPage` take `onBack={() => history.back()}` rather than a target screen, so their Back returns wherever the user actually came from. See `plan.md` Phase 16.
 * `ExtensionPanel.tsx` was deleted in Phase 16 along with `App.tsx`'s `extension` screen — the landing page now serves the real packaged extension (`frontend/public/nectarly-extension.zip`) instead of demoing a mock panel. `extension/src/popup.ts` is the surviving implementation of that UI.
 * `AlternativeTierList.tsx` (Phase 6) was deleted in Phase 10 — replaced by `ResultCard.tsx` (one candidate) + `AlternativeGroups.tsx` (group ordering/layout), matching the Organic design handoff's `same_spec`/`same_job`/`clears_floor` groups. See `plan.md` Phase 10/11 for the backend data-contract catch-up this still depends on.
+* `ComparisonTable.tsx` (Phase 10) was deleted in Phase 17 — the Ranked/Side-by-side toggle it was half of is gone, and each group now renders as its own horizontal snap rail instead. Per-candidate spec comparison still exists: it lives in `SpecBreakdownModal.tsx`, reached from a card's Compare button. The all-candidates spec *table* is what went away.

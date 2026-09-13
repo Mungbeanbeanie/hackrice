@@ -6,7 +6,6 @@ import type { Account, Group, Product, SearchResponse } from "@/api/client";
 import SearchBar from "@/components/SearchBar";
 import TargetProductCard from "@/components/TargetProductCard";
 import AlternativeGroups, { GROUP_ORDER } from "@/components/AlternativeGroups";
-import ComparisonTable from "@/components/ComparisonTable";
 import SpecBreakdownModal from "@/components/SpecBreakdownModal";
 import LandingPage from "@/components/LandingPage";
 import SignInPage from "@/components/SignInPage";
@@ -18,7 +17,6 @@ import SettingsPage from "@/components/SettingsPage";
 
 type Screen = "landing" | "app" | "signin" | "profile" | "settings";
 type AppState = "idle" | "loading" | "results" | "error";
-type View = "ranked" | "table";
 
 function flattenGroups(groups: Record<Group, Product[]>): Product[] {
   return GROUP_ORDER.flatMap((g) => groups[g]);
@@ -79,13 +77,13 @@ function LoadingState() {
           Searching retailers...
         </span>
       </div>
-      <div className="flex flex-col" style={{ gap: "var(--space-3)" }}>
+      <div className="flex" style={{ gap: "var(--space-3)" }}>
         {[0, 0.15, 0.3].map((delay, i) => (
           <div
             key={i}
-            className="rounded-lg"
+            className="rounded-lg flex-1"
             style={{
-              height: 104,
+              height: 300,
               opacity: 1 - i * 0.25,
               background: "linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%)",
               backgroundSize: "200% 100%",
@@ -138,7 +136,6 @@ export default function App() {
   const initialQuery = new URLSearchParams(window.location.search).get("q") ?? "";
   const [screen, setScreen] = useState<Screen>(initialQuery ? "app" : "landing");
   const [appState, setAppState] = useState<AppState>("idle");
-  const [view, setView] = useState<View>("ranked");
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [error, setError] = useState("");
@@ -303,45 +300,20 @@ export default function App() {
                 <div className="flex flex-col" style={{ flex: "1 1 460px", minWidth: 0, gap: "var(--space-6)" }}>
                   {results.targetProduct && <TargetProductCard product={results.targetProduct} />}
 
-                  <div className="flex items-center flex-wrap" style={{ gap: "var(--space-3)" }}>
-                    <h2
-                      className="mr-auto"
-                      style={{ fontSize: "clamp(22px, 2.4vw, 27px)", lineHeight: 1.15, margin: 0 }}
-                    >
-                      {allProducts.length} alternatives worth your attention
-                    </h2>
-                    <div className="flex bg-surface border border-divider rounded-full" style={{ gap: "var(--space-1)", padding: "var(--space-1)" }}>
-                      <button
-                        onClick={() => setView("ranked")}
-                        className={`rounded-full font-bold cursor-pointer border-none ${view === "ranked" ? "bg-neutral-100 text-text shadow-sm" : "bg-transparent text-neutral-700"}`}
-                        style={{ padding: "var(--space-1) var(--space-3)", fontSize: "13px" }}
-                      >
-                        Ranked
-                      </button>
-                      <button
-                        onClick={() => setView("table")}
-                        className={`rounded-full font-bold cursor-pointer border-none ${view === "table" ? "bg-neutral-100 text-text shadow-sm" : "bg-transparent text-neutral-700"}`}
-                        style={{ padding: "var(--space-1) var(--space-3)", fontSize: "13px" }}
-                      >
-                        Side by side
-                      </button>
-                    </div>
-                  </div>
+                  <h2 style={{ fontSize: "clamp(22px, 2.4vw, 27px)", lineHeight: 1.15, margin: 0 }}>
+                    {allProducts.length} alternatives worth your attention
+                  </h2>
 
-                  {view === "ranked" ? (
-                    <AlternativeGroups
-                      groups={results.groups}
-                      baselinePrice={results.baselinePrice}
-                      baselineLabel={
-                        results.mode === "description" ? "median price" : "original price"
-                      }
-                      selectedId={couponProduct?.id ?? null}
-                      onCompare={setCompareProduct}
-                      onSelect={setCouponProduct}
-                    />
-                  ) : (
-                    <ComparisonTable target={results.targetProduct} products={allProducts} />
-                  )}
+                  <AlternativeGroups
+                    groups={results.groups}
+                    baselinePrice={results.baselinePrice}
+                    baselineLabel={
+                      results.mode === "description" ? "median price" : "original price"
+                    }
+                    selectedId={couponProduct?.id ?? null}
+                    onCompare={setCompareProduct}
+                    onSelect={setCouponProduct}
+                  />
                 </div>
 
                 {best && (

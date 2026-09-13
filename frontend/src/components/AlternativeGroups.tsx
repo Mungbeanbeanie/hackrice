@@ -72,7 +72,14 @@ export default function AlternativeGroups({
                 {g.description}
               </p>
             </div>
-            <div className="flex flex-col gap-3">
+            {/* ponytail: native overflow + scroll-snap, no carousel library.
+                The vertical padding is load-bearing — overflow-x:auto computes
+                overflow-y to auto, which would otherwise clip the card's hover
+                lift and the selected card's ring. */}
+            <div
+              className="flex gap-3 overflow-x-auto snap-x snap-mandatory"
+              style={{ padding: "4px 2px var(--space-2)", scrollPaddingLeft: "2px" }}
+            >
               {products.map((p) => (
                 <ResultCard
                   key={p.id}

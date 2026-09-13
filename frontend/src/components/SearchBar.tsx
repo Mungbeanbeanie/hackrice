@@ -86,7 +86,7 @@ export default function SearchBar({ value, onChange, loading, onSearch, variant 
             <span className="w-4 h-4 rounded-full border-2 border-bg/40 border-t-bg animate-spin" />
           ) : hero ? (
             <>
-              Find alternatives
+              Search
               <ArrowRight size={16} strokeWidth={2.75} />
             </>
           ) : (

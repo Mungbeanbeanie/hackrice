@@ -211,30 +211,40 @@ The search + results surface:
 |           Specs: Memory Foam, Cooling Gel, Contour Design | Rating: 4.5 (1,200)    |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
-|  {n} ALTERNATIVES WORTH YOUR ATTENTION                       [Ranked | Side-by-side]|
+|  {n} ALTERNATIVES WORTH YOUR ATTENTION                                            |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
-|  SAME SPEC, NO LOGO — matches the original's materials and construction           |
-|  [Image]  Unbranded Contour Memory Foam Pillow                                    |
-|           Price: $42.00 (saves $78.00)            Match: 96%  |  4.4★ (1,200)      |
-|           [ Compare ]                                              [ Buy ]        |
+|  ● SAME SPEC, NO LOGO   [n results]                                               |
+|    matches the original's materials and construction                              |
+|    +----------+ +----------+ +----------+ +--                                     |
+|    | [Image]  | | [Image]  | | [Image]  | | [                                     |
+|    | Unbranded| | Generic  | | Contour  | | S    ← horizontal scroll / snap        |
+|    | Contour  | | Memory   | | Foam Pil | | t                                     |
+|    | $42.00   | | $48.00   | | $51.00   | | $                                     |
+|    | saves $78| | saves $72| | saves $69| | s                                     |
+|    | ▓▓▓▓░░░░ | | ▓▓▓▓▓░░░ | | ▓▓▓▓▓░░░ | | ▓                                     |
+|    | 96% 4.4★ | | 91% 4.3★ | | 89% 4.5★ | | 8                                     |
+|    |[Cmp][Buy]| |[Cmp][Buy]| |[Cmp][Buy]| | [                                     |
+|    +----------+ +----------+ +----------+ +--                                     |
 |                                                                                   |
-|-----------------------------------------------------------------------------------|
+|  ● DIFFERENT BUILD, SAME JOB   [n results]                                        |
+|    another way of reaching the same outcome                                       |
+|    +----------+ +----------+ +----------+ +--   (same rail, scrolls sideways)      |
 |                                                                                   |
-|  DIFFERENT BUILD, SAME JOB — another way of reaching the same outcome            |
-|  [Image]  High-Density Natural Latex Support Pillow                               |
-|           Price: $55.00 (saves $65.00)            Match: 88%  |  4.6★ (741)        |
-|           [ Compare ]                                              [ Buy ]        |
-|                                                                                   |
-|-----------------------------------------------------------------------------------|
-|                                                                                   |
-|  CHEAPEST THAT CLEARS QUALITY — lowest price still above the quality floor         |
-|  [Image]  Standard High-Density Foam Pillow                                       |
-|           Price: $22.00 (saves $98.00)            Match: 74%  |  4.1★ (41,230)     |
-|           [ Compare ]                                              [ Buy ]        |
+|  ● CHEAPEST THAT CLEARS QUALITY   [n results]                                     |
+|    lowest price still above the quality floor                                     |
+|    +----------+ +----------+ +----------+ +--   (same rail, scrolls sideways)      |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
 ```
+
+Each group is a horizontally-scrolling snap rail of fixed-width portrait cards
+(`plan.md` Phase 17), not a vertical list. Nothing upstream caps candidate
+count, so a group can hold 20+ cards; the rail keeps the page's vertical height
+fixed at roughly three rails regardless, which is what makes all three groups
+visible at once. The earlier Ranked / Side-by-side toggle and the
+all-candidates spec table behind it are gone — per-candidate spec comparison
+still lives in the Compare overlay.
 
 ### 5.1 Component Breakdown
 * **Search Bar:** One input for all three modes (Section 1.3) — no mode selector. The backend infers url / exact_product / description from the raw string; any non-empty string is valid input.
