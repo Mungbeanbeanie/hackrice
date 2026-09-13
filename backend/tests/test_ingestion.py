@@ -3,7 +3,6 @@ import pytest
 
 from app import config
 from app.ingestion import serpapi_client, target_resolver
-from app.models import SearchMode
 from app.routes import search
 
 
@@ -190,14 +189,14 @@ AMAZON_URL = (
 
 @pytest.mark.parametrize("url", [AMAZON_URL, f"https://{AMAZON_URL}"])
 def test_pasted_product_url_resolves_to_slug(url: str) -> None:
-    assert search._infer_mode(url) is SearchMode.URL
+    assert search._is_url(url) is True
     assert target_resolver.url_to_text(url) == (
         "Retrospec Dakota Bicycle Skateboard Helmet"
     )
 
 
 def test_plain_text_query_is_not_treated_as_url() -> None:
-    assert search._infer_mode("scooter helmet") is SearchMode.EXACT_PRODUCT
+    assert search._is_url("scooter helmet") is False
 
 
 def _response(status: int) -> httpx.Response:

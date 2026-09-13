@@ -1,11 +1,12 @@
 import re
 import statistics
 
+import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app import analytics
-from app.features import attribute_matrix, standardize, svd
+from app import analytics, config
+from app.features import attribute_matrix, embeddings, standardize, svd
 from app.ingestion import serpapi_client, target_resolver
 from app.models import ComparisonResult, Group, Product, SearchMode, SpecAttribute
 from app.scoring import explain, quality, value
@@ -66,29 +67,139 @@ class SearchApiResponse(BaseModel):
     baselinePrice: float | None = None
 
 
-# Above this many words the input reads as a functional description rather than
-# a product name, so no target is resolved.
-#
-# Known limitation: a short functional phrase ("ergonomic memory foam pillow",
-# 4 words) resolves a target it should not, and the top result then becomes a
-# baseline it was never meant to be. Deciding from the top result's similarity
-# to the query instead would be accurate, but couples mode inference to scoring
-# for a wrong answer at one edge.
-EXACT_PRODUCT_MAX_WORDS = 4
-
-
-def _infer_mode(raw_input: str) -> SearchMode:
+def _is_url(raw_input: str) -> bool:
     text = raw_input.strip()
-    # A pasted link routinely loses its scheme ("amazon.com/dp/..."), and since
-    # a URL carries no whitespace it would then pass the <=4-word exact-product
-    # test and get sent to SerpAPI verbatim, which matches nothing.
-    if text.startswith(("http://", "https://")) or re.match(
-        r"^[\w-]+(\.[\w-]+)+/", text
-    ):
-        return SearchMode.URL
-    if len(text.split()) <= EXACT_PRODUCT_MAX_WORDS:
-        return SearchMode.EXACT_PRODUCT
-    return SearchMode.DESCRIPTION
+    # A pasted link routinely loses its scheme ("amazon.com/dp/..."), so a bare
+    # domain-looking prefix counts too, not just an explicit http(s) scheme.
+    return bool(
+        text.startswith(("http://", "https://"))
+        or re.match(r"^[\w-]+(\.[\w-]+)+/", text)
+    )
+
+
+# Curated, not exhaustive — any brand or product line not on this list is
+# invisible to the exact_product escalation below and the query stays in the
+# safe default (description). Needs maintaining as new names come up.
+#
+# Generic-English words are qualified with their parent brand ("samsung
+# galaxy", not bare "galaxy") to avoid false-positiving on unrelated queries;
+# genuinely unambiguous ones stay bare.
+_BRAND_NAMES = frozenset(
+    {
+        "purple",
+        "casper",
+        "tempur-pedic",
+        "sealy",
+        "serta",
+        "saatva",
+        "leesa",
+        "nectar",
+        "tuft & needle",
+        "sleep number",
+        "apple",
+        "samsung",
+        "sony",
+        "lg",
+        "bose",
+        "jbl",
+        "beats",
+        "sonos",
+        "logitech",
+        "anker",
+        "garmin",
+        "fitbit",
+        "gopro",
+        "canon",
+        "nikon",
+        "dell",
+        "hp",
+        "lenovo",
+        "microsoft",
+        "google",
+        "asus",
+        "acer",
+        "roku",
+        "amazon",
+        "dyson",
+        "shark",
+        "whirlpool",
+        "kitchenaid",
+        "cuisinart",
+        "instant pot",
+        "ninja",
+        "keurig",
+        "vitamix",
+        "black+decker",
+        "dewalt",
+        "bosch",
+        "philips",
+        "panasonic",
+        "irobot",
+        "roomba",
+        "nike",
+        "adidas",
+        "under armour",
+        "the north face",
+        "patagonia",
+        "levi's",
+        "reebok",
+        "new balance",
+        "puma",
+        "vans",
+        "columbia",
+        "yeti",
+        "coleman",
+        "igloo",
+        # Product-line names people search without the maker's name.
+        "iphone",
+        "ipad",
+        "macbook",
+        "airpods",
+        "apple watch",
+        "imac",
+        "samsung galaxy",
+        "playstation",
+        "ps5",
+        "ps4",
+        "xbox",
+        "surface pro",
+        "surface laptop",
+        "chromebook",
+        "google pixel",
+        "google nest",
+        "kindle",
+        "alexa",
+        "amazon echo",
+        "thinkpad",
+        "nintendo switch",
+        "nintendo",
+        "walkman",
+        "quietcomfort",
+    }
+)
+_BRAND_PATTERN = re.compile(
+    r"\b(?:"
+    + "|".join(re.escape(b) for b in sorted(_BRAND_NAMES, key=len, reverse=True))
+    + r")\b",
+    re.IGNORECASE,
+)
+
+
+def _detected_brand(text: str) -> str | None:
+    match = _BRAND_PATTERN.search(text)
+    return match.group(0).lower() if match else None
+
+
+def _semantic_match(a: str, b: str) -> float:
+    # Never lets an OpenAI outage 502 the whole search over an optional
+    # signal — same tolerance as attribute_matrix's TF-IDF fallback. Falls
+    # back to "unconfirmed" (0.0), keeping mode inference on the safe default
+    # (description).
+    try:
+        vectors = embeddings.embed_texts([a, b])
+    except RuntimeError:
+        return 0.0
+    return svd.cosine_similarity(np.array(vectors[0]), np.array(vectors[1]))
 
 
 # Price and rating already have their own places in the UI — as the price line,
@@ -217,12 +328,8 @@ def _to_wire_product(
 
 @router.post("/api/search", response_model=SearchApiResponse)
 def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
-    mode = _infer_mode(body.query)
-    search_text = (
-        target_resolver.url_to_text(body.query)
-        if mode == SearchMode.URL
-        else body.query
-    )
+    is_url = _is_url(body.query)
+    search_text = target_resolver.url_to_text(body.query) if is_url else body.query
 
     # One upstream call, not two. Resolving the target separately and then
     # re-searching on its title doubled latency and quota for the same result
@@ -233,10 +340,44 @@ def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
     except RuntimeError as exc:
         raise HTTPException(502, f"Product search upstream unavailable: {exc}") from exc
 
-    # Recorded here, before the mode branch, so there is one call site rather
-    # than one per return path — and so searches that die on the 404 below
-    # still count as the real user attempts they were.
-    analytics.record_search(request, body.query, mode.value, len(results))
+    # Logs the user's apparent intent (a brand was named), not the final
+    # resolved outcome — a brand-bearing query downgraded to description below
+    # still counted as a real exact-product attempt. One analytics call site,
+    # same as before; a 404 below still counts, no special-casing needed.
+    brand = None if is_url else _detected_brand(body.query)
+    provisional_mode = (
+        SearchMode.URL
+        if is_url
+        else SearchMode.EXACT_PRODUCT
+        if brand is not None
+        else SearchMode.DESCRIPTION
+    )
+    analytics.record_search(request, body.query, provisional_mode.value, len(results))
+
+    if is_url:
+        if not results:
+            raise HTTPException(404, "Target product not found")
+        mode = SearchMode.URL
+        target = target_resolver.pick_target(results, body.query, search_text)
+    elif brand is not None:
+        if not results:
+            raise HTTPException(404, "Target product not found")
+        # Both gates required: a brand named in the query but confirmed on a
+        # DIFFERENT product (wrong brand) or a topically-similar-but-wrong
+        # product (right brand, low semantic match) must not become the
+        # target — either failure alone falls back to the safe default.
+        candidate = target_resolver.pick_target(results, body.query, search_text)
+        brand_confirmed = brand in candidate.title.lower()
+        semantic_ok = (
+            _semantic_match(body.query, candidate.title)
+            >= config.EXACT_PRODUCT_MATCH_THRESHOLD
+        )
+        if brand_confirmed and semantic_ok:
+            mode, target = SearchMode.EXACT_PRODUCT, candidate
+        else:
+            mode, target = SearchMode.DESCRIPTION, None
+    else:
+        mode, target = SearchMode.DESCRIPTION, None
 
     if mode == SearchMode.DESCRIPTION:
         candidates = results
@@ -246,9 +387,8 @@ def search(body: SearchRequestBody, request: Request) -> SearchApiResponse:
         target = _median_product(candidates)
         target_wire = None
     else:
-        if not results:
-            raise HTTPException(404, "Target product not found")
-        target = target_resolver.pick_target(results, body.query, search_text)
+        # Only the DESCRIPTION-producing branches above ever set target=None.
+        assert target is not None
         # Not results[1:] — the target is no longer guaranteed to be index 0.
         candidates = [p for p in results if p.id != target.id]
         target_wire = _to_wire_product(target)

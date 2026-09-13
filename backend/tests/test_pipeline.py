@@ -61,7 +61,7 @@ def _fake_embeddings(texts: list[str]) -> list[list[float]]:
 
 
 def test_search_makes_one_upstream_call_and_splits_target_from_candidates() -> None:
-    results = [_product("t1"), _product("c1"), _product("c2")]
+    results = [_product("t1", title="Nike Air Zoom"), _product("c1"), _product("c2")]
     with (
         patch(
             "app.routes.search.serpapi_client.search_products", return_value=results
@@ -80,14 +80,21 @@ def test_search_makes_one_upstream_call_and_splits_target_from_candidates() -> N
 
 
 def test_candidates_and_reference_share_one_embedding_call() -> None:
-    results = [_product("t1"), _product("c1"), _product("c2")]
+    # Brand-free query: isolates the main pipeline's batching guarantee from
+    # mode-decision's own embed call, which is a separate concern (a
+    # brand-bearing query costs one extra embed call there, not here). Two
+    # results, not three — description mode keeps every result as a candidate
+    # (no target to remove), so two candidates plus the reference is three.
+    results = [_product("c1"), _product("c2")]
     with (
         patch("app.routes.search.serpapi_client.search_products", return_value=results),
         patch(
             "app.features.embeddings.embed_texts", side_effect=_fake_embeddings
         ) as embed,
     ):
-        client.post("/api/search", json={"query": "Nike Shoe"})
+        client.post(
+            "/api/search", json={"query": "a very long descriptive search query here"}
+        )
 
     # Embedding the reference separately doubled the round trips per request.
     assert embed.call_count == 1
@@ -97,7 +104,11 @@ def test_candidates_and_reference_share_one_embedding_call() -> None:
 def test_search_falls_back_to_tfidf_when_embeddings_fail() -> None:
     # The regression this whole pass exists for: with the OpenAI account out of
     # credits, the uncaught RateLimitError escaped as a bare 500 and every real
-    # search died roughly a minute in.
+    # search died roughly a minute in. Query has no brand, so this is already
+    # description mode regardless of the outage — proving TF-IDF ranking still
+    # works when the real embeddings pipeline is entirely down. (A brand-
+    # bearing query hitting this same outage is covered separately by
+    # test_semantic_match_embedding_failure_falls_back_to_description below.)
     results = [
         _product("t1", title="Contour Memory Foam Pillow", price=120.0),
         _product("c1", title="Contour Memory Foam Pillow Generic", price=40.0),
@@ -114,7 +125,8 @@ def test_search_falls_back_to_tfidf_when_embeddings_fail() -> None:
 
     assert response.status_code == 200
     returned = [p for group in response.json()["groups"].values() for p in group]
-    assert {p["id"] for p in returned} == {"c1", "c2"}
+    # Description mode keeps every result as a candidate — no target removed.
+    assert {p["id"] for p in returned} == {"t1", "c1", "c2"}
     # TF-IDF still has to rank: the near-identical title must beat the hose.
     by_id = {p["id"]: p["matchScore"] for p in returned}
     assert by_id["c1"] > by_id["c2"]
@@ -151,7 +163,7 @@ _SPECS = [
 
 def _search_with_specs(query: str = "Nike Shoe"):
     results = [
-        _product("t1", specs=_SPECS),
+        _product("t1", title="Nike Widget", specs=_SPECS),
         _product("c1", specs=_SPECS),
         _product("c2", specs=[_spec("material", "latex"), _spec("measure_in", 24.0)]),
     ]
@@ -183,7 +195,7 @@ def test_commerce_specs_never_reach_the_wire() -> None:
 def test_target_carries_short_but_no_rationale() -> None:
     # The target is the reference, not a candidate being argued for.
     target = _search_with_specs().json()["targetProduct"]
-    assert target["short"] == "Widget"
+    assert target["short"] == "Nike Widget"
     assert target["rationale"] is None
     assert all(s["verdict"] is None for s in target["specs"])
 
@@ -240,7 +252,10 @@ def test_description_mode_reports_the_median_baseline_price() -> None:
 
 
 def test_resolved_modes_report_the_target_as_the_baseline() -> None:
-    results = [_product("t1", price=120.0), _product("c1", price=40.0)]
+    results = [
+        _product("t1", price=120.0, title="Nike Air Zoom"),
+        _product("c1", price=40.0),
+    ]
     with (
         patch("app.routes.search.serpapi_client.search_products", return_value=results),
         patch("app.features.embeddings.embed_texts", side_effect=_fake_embeddings),
@@ -249,3 +264,63 @@ def test_resolved_modes_report_the_target_as_the_baseline() -> None:
 
     assert body["mode"] == "exact_product"
     assert body["baselinePrice"] == body["targetProduct"]["price"]
+
+
+def test_semantic_but_wrong_brand_falls_back_to_description() -> None:
+    # Both brand match and semantic match are required — a query naming one
+    # brand whose only real result is a DIFFERENT (but topically similar)
+    # brand must not pass just because the general topic matches.
+    results = [_product("c1", title="Adidas Ultraboost Running Shoe", price=90.0)]
+    with (
+        patch("app.routes.search.serpapi_client.search_products", return_value=results),
+        patch("app.features.embeddings.embed_texts", side_effect=_fake_embeddings),
+    ):
+        response = client.post("/api/search", json={"query": "Nike running shoes"})
+    assert response.status_code == 200
+    assert response.json()["mode"] == "description"
+
+
+def _orthogonal_embeddings(texts: list[str]) -> list[list[float]]:
+    # Deterministic, genuinely distinct vectors — unlike _fake_embeddings'
+    # identical-vector shortcut, which makes every semantic match trivially
+    # 1.0 and can't exercise a low-match case.
+    vectors = {
+        "Nike Shoe": [1.0, 0.0, 0.0],
+        "Nike Garden Hose": [0.0, 1.0, 0.0],
+    }
+    return [vectors.get(t, [0.5, 0.5, 0.0]) for t in texts]
+
+
+def test_low_semantic_match_falls_back_to_description_despite_brand_match() -> None:
+    # Brand confirmed (both say "Nike"), but the product is unrelated —
+    # semantic match must independently gate the outcome too, not just brand.
+    results = [_product("c1", title="Nike Garden Hose", price=20.0)]
+    with (
+        patch("app.routes.search.serpapi_client.search_products", return_value=results),
+        patch(
+            "app.features.embeddings.embed_texts", side_effect=_orthogonal_embeddings
+        ),
+    ):
+        response = client.post("/api/search", json={"query": "Nike Shoe"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "description"
+    assert body["targetProduct"] is None
+
+
+def test_semantic_match_embedding_failure_falls_back_to_description() -> None:
+    # An OpenAI outage during the mode check must not 502 the whole search —
+    # same "never crash on an optional signal" precedent as attribute_matrix's
+    # TF-IDF fallback. Brand-confirming title isolates this from the
+    # brand-mismatch case above — the only failing gate here is semantic.
+    results = [_product("c1", title="Nike Something", price=20.0)]
+    with (
+        patch("app.routes.search.serpapi_client.search_products", return_value=results),
+        patch(
+            "app.features.embeddings.embed_texts",
+            side_effect=RuntimeError("insufficient_quota"),
+        ),
+    ):
+        response = client.post("/api/search", json={"query": "Nike Shoe"})
+    assert response.status_code == 200
+    assert response.json()["mode"] == "description"

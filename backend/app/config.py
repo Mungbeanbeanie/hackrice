@@ -33,6 +33,12 @@ MIN_QUALITY_THRESHOLD = float(os.getenv("MIN_QUALITY_THRESHOLD", "3.5"))
 SPEC_MATCH_SAME_SPEC = float(os.getenv("SPEC_MATCH_SAME_SPEC", "0.85"))
 SPEC_MATCH_SAME_JOB = float(os.getenv("SPEC_MATCH_SAME_JOB", "0.6"))
 
+# Mode-inference brand/semantic-match gate (routes/search.py). Unverified
+# guess for text-embedding-3-small's cosine-similarity distribution, not
+# empirically calibrated against real query/title pairs — same status as the
+# thresholds above, flagged rather than presented as validated.
+EXACT_PRODUCT_MATCH_THRESHOLD = float(os.getenv("EXACT_PRODUCT_MATCH_THRESHOLD", "0.5"))
+
 # Vultr-managed cache connection string.
 CACHE_URL = os.getenv("CACHE_URL")
 
